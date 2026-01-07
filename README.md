@@ -5,7 +5,7 @@ A powerful command-line tool for translating text between languages using variou
 ## Features
 
 - **Multiple LLM Providers**: Support for OpenAI, Anthropic, Google, Ollama, and OpenRouter
-- **Flexible Input/Output**: File-based, pipe, and interactive modes
+- **Flexible Input/Output**: File-based and pipe modes
 - **Smart Text Processing**: Automatic chunking for long texts
 - **Format Preservation**: Maintains Markdown and HTML formatting
 - **Glossary Support**: Ensure consistent translation of technical terms
@@ -36,27 +36,23 @@ make build
 
 ```bash
 # Translate text from English to Russian
-echo "Hello world" | llm-translate -to ru
+echo "Hello world" | llm-translate -t ru
 
 # Translate a file
-llm-translate -i document.txt -o document_ru.txt -from en -to ru
-
-# Interactive mode
-llm-translate -to de
-# Type text and press Ctrl+D to translate
+llm-translate -i document.txt -o document_ru.txt -f en -t ru
 ```
 
 ### Using Different Providers
 
 ```bash
 # Use Anthropic Claude
-llm-translate -p anthropic -m claude-3-5-sonnet-20241022 -i text.txt -to ru
+llm-translate -p anthropic -m claude-3-5-sonnet-20241022 -i text.txt -t ru
 
 # Use local Ollama
-llm-translate -p ollama -m llama3.2 -i text.txt -to es
+llm-translate -p ollama -m llama3.2 -i text.txt -t es
 
 # Use Google Gemini
-llm-translate -p google -m gemini-2.0-flash -i text.txt -to fr
+llm-translate -p google -m gemini-2.0-flash -i text.txt -t fr
 ```
 
 ## Configuration
@@ -156,7 +152,8 @@ proxy:
 | `--glossary` | `-g` | Glossary file | - |
 | `--preserve-format` | | Keep formatting | false |
 | `--strong` | `-s` | Strong validation mode | false |
-| `--verbose` | `-v` | Verbose output | false |
+| `--verbose` | | Verbose output | false |
+| `--version` | `-v` | Show version | - |
 | `--quiet` | `-q` | Quiet mode | false |
 | `--proxy` | `-x` | Proxy server | from config |
 | `--help` | `-h` | Show help | - |
@@ -167,10 +164,10 @@ proxy:
 
 ```bash
 # Formal style for official documents
-llm-translate -i letter.txt -o letter_de.txt -to de --style formal
+llm-translate -i letter.txt -o letter_de.txt -t de --style formal
 
 # Technical style preserving terminology
-llm-translate -i docs.md -o docs_ru.md -to ru --style technical
+llm-translate -i docs.md -o docs_ru.md -t ru --style technical
 ```
 
 ### Using Glossaries
@@ -189,7 +186,7 @@ terms:
 Use it in translation:
 
 ```bash
-llm-translate -i tech.txt -o tech_ru.txt -to ru --glossary terms.yaml
+llm-translate -i tech.txt -o tech_ru.txt -t ru --glossary terms.yaml
 ```
 
 ### Strong Validation Mode
@@ -197,18 +194,18 @@ llm-translate -i tech.txt -o tech_ru.txt -to ru --glossary terms.yaml
 Ensures the translation doesn't contain untranslated source language text:
 
 ```bash
-llm-translate -i document.txt -o document_ru.txt -from en -to ru --strong
+llm-translate -i document.txt -o document_ru.txt -f en -t ru --strong
 ```
 
 ### Proxy Configuration
 
 ```bash
 # Using SOCKS5 proxy
-llm-translate -i file.txt -o output.txt -to ru \
+llm-translate -i file.txt -o output.txt -t ru \
   --proxy socks5://proxy.example.com:1080
 
 # HTTP proxy with authentication
-llm-translate -i file.txt -o output.txt -to ru \
+llm-translate -i file.txt -o output.txt -t ru \
   --proxy http://user:pass@proxy.example.com:8080
 ```
 
@@ -218,7 +215,7 @@ llm-translate -i file.txt -o output.txt -to ru \
 
 ```bash
 # Translate README preserving Markdown formatting
-llm-translate -i README.md -o README_ru.md -to ru --preserve-format
+llm-translate -i README.md -o README_ru.md -t ru --preserve-format
 ```
 
 ### Batch Translation
@@ -226,7 +223,7 @@ llm-translate -i README.md -o README_ru.md -to ru --preserve-format
 ```bash
 # Translate all .txt files in a directory
 for file in *.txt; do
-  llm-translate -i "$file" -o "${file%.txt}_ru.txt" -to ru
+  llm-translate -i "$file" -o "${file%.txt}_ru.txt" -t ru
 done
 ```
 
@@ -236,7 +233,7 @@ done
 # Extract and translate
 curl https://example.com/api/docs | \
   jq -r '.content' | \
-  llm-translate -to ru > translated.txt
+  llm-translate -t ru > translated.txt
 ```
 
 ### Using with Local Models
@@ -246,7 +243,7 @@ curl https://example.com/api/docs | \
 ollama serve
 
 # Translate using local model
-llm-translate -p ollama -m llama3.2 -i text.txt -to es
+llm-translate -p ollama -m llama3.2 -i text.txt -t es
 ```
 
 ## Language Codes
