@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	Version = "1.0.0"
+	Version = "dev"
 
 	inputFile        string
 	outputFile       string

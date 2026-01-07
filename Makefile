@@ -5,13 +5,15 @@ BINARY_DIR=bin
 MAIN_PATH=cmd/llm-translate/main.go
 GO=go
 GOFLAGS=-v
+VERSION ?= dev
+LDFLAGS=-s -w -X github.com/user/llm-translate/internal/cli.Version=$(VERSION)
 
 all: clean fmt vet build
 
 build:
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BINARY_DIR)
-	$(GO) build $(GOFLAGS) -o $(BINARY_DIR)/$(BINARY_NAME) $(MAIN_PATH)
+	$(GO) build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BINARY_DIR)/$(BINARY_NAME) $(MAIN_PATH)
 
 install:
 	@echo "Installing $(BINARY_NAME)..."
@@ -58,11 +60,11 @@ update-deps:
 build-all:
 	@echo "Building for all platforms..."
 	@mkdir -p $(BINARY_DIR)
-	GOOS=linux GOARCH=amd64 $(GO) build $(GOFLAGS) -o $(BINARY_DIR)/$(BINARY_NAME)-linux-amd64 $(MAIN_PATH)
-	GOOS=linux GOARCH=arm64 $(GO) build $(GOFLAGS) -o $(BINARY_DIR)/$(BINARY_NAME)-linux-arm64 $(MAIN_PATH)
-	GOOS=darwin GOARCH=amd64 $(GO) build $(GOFLAGS) -o $(BINARY_DIR)/$(BINARY_NAME)-darwin-amd64 $(MAIN_PATH)
-	GOOS=darwin GOARCH=arm64 $(GO) build $(GOFLAGS) -o $(BINARY_DIR)/$(BINARY_NAME)-darwin-arm64 $(MAIN_PATH)
-	GOOS=windows GOARCH=amd64 $(GO) build $(GOFLAGS) -o $(BINARY_DIR)/$(BINARY_NAME)-windows-amd64.exe $(MAIN_PATH)
+	GOOS=linux GOARCH=amd64 $(GO) build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BINARY_DIR)/$(BINARY_NAME)-linux-amd64 $(MAIN_PATH)
+	GOOS=linux GOARCH=arm64 $(GO) build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BINARY_DIR)/$(BINARY_NAME)-linux-arm64 $(MAIN_PATH)
+	GOOS=darwin GOARCH=amd64 $(GO) build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BINARY_DIR)/$(BINARY_NAME)-darwin-amd64 $(MAIN_PATH)
+	GOOS=darwin GOARCH=arm64 $(GO) build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BINARY_DIR)/$(BINARY_NAME)-darwin-arm64 $(MAIN_PATH)
+	GOOS=windows GOARCH=amd64 $(GO) build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(BINARY_DIR)/$(BINARY_NAME)-windows-amd64.exe $(MAIN_PATH)
 
 run:
 	@echo "Running $(BINARY_NAME)..."
