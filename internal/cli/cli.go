@@ -110,6 +110,12 @@ func runTranslate(ctx context.Context) error {
 		}
 		defer file.Close()
 		input = file
+	} else {
+		// Check if stdin is a terminal (no piped input)
+		stat, _ := os.Stdin.Stat()
+		if (stat.Mode() & os.ModeCharDevice) != 0 {
+			return fmt.Errorf("no input provided. Use -i <file> or pipe text to stdin")
+		}
 	}
 
 	var output io.Writer = os.Stdout
