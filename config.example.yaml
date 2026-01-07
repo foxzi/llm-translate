@@ -1,0 +1,122 @@
+# LLM-Translate Configuration Example
+# Copy this file to ~/.config/llm-translate/config.yaml and customize
+
+# Default provider to use when not specified
+default_provider: openai
+
+# Default target language for translations
+default_target_language: ru
+
+# General settings
+settings:
+  temperature: 0.3
+  max_tokens: 4096
+  timeout: 60
+  chunk_size: 3000
+  preserve_format: false
+  retry_count: 3
+  retry_delay: 1
+
+# Strong validation settings (--strong mode)
+strong_validation:
+  enabled: false
+  max_retries: 3
+  
+  # Patterns to ignore during validation (regex)
+  allowed_patterns:
+    - '\b[A-Z]{2,}\b'                    # Acronyms (API, HTTP, etc.)
+    - '\b[a-z]+[A-Z][a-zA-Z]*\b'        # camelCase
+    - '\b[A-Z][a-z]+[A-Z][a-zA-Z]*\b'   # PascalCase
+    - '"[^"]+"'                          # Quoted text
+    - "'[^']+'"                          # Single quoted text
+    - '`[^`]+`'                          # Inline code
+    - '\b[a-z_]+\([^)]*\)'               # Functions
+    - 'https?://[^\s]+'                  # URLs
+    - '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' # Emails
+  
+  # Terms to always allow
+  allowed_terms:
+    - API
+    - HTTP
+    - HTTPS
+    - JSON
+    - XML
+    - SQL
+    - REST
+    - GraphQL
+    - OAuth
+    - JWT
+    - SDK
+    - IDE
+    - CLI
+    - GUI
+    - URL
+    - DNS
+    - SSL
+    - TLS
+
+# Global proxy settings
+proxy:
+  # Proxy URL formats:
+  # HTTP/HTTPS: http://host:port or https://host:port
+  # SOCKS5: socks5://host:port
+  # With auth: socks5://user:password@host:port
+  url: ""
+  username: ""
+  password: ""
+  
+  # Hosts to bypass proxy
+  no_proxy:
+    - localhost
+    - 127.0.0.1
+    - "*.local"
+
+# Provider configurations
+providers:
+  openai:
+    api_key: ${OPENAI_API_KEY}
+    base_url: https://api.openai.com/v1
+    model: gpt-4o-mini
+    
+  anthropic:
+    api_key: ${ANTHROPIC_API_KEY}
+    base_url: https://api.anthropic.com
+    model: claude-3-5-sonnet-20241022
+    
+  google:
+    api_key: ${GOOGLE_API_KEY}
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    model: gemini-2.0-flash
+    
+  ollama:
+    # No API key needed for local Ollama
+    base_url: http://localhost:11434
+    model: llama3.2
+    
+  openrouter:
+    api_key: ${OPENROUTER_API_KEY}
+    base_url: https://openrouter.ai/api/v1
+    model: anthropic/claude-3.5-sonnet
+
+# Custom prompts (optional)
+prompts:
+  system: |
+    You are a professional translator. Translate the following text 
+    from {source_lang} to {target_lang}. 
+    Preserve the original formatting and structure.
+    Output only the translation without explanations.
+  
+  # Style-specific prompts
+  styles:
+    formal: "Use formal language appropriate for official documents."
+    informal: "Use casual, conversational language."
+    technical: "Preserve technical terminology accurately."
+    literary: "Maintain literary style and artistic expression."
+
+# Default glossary (applied to all translations)
+glossary:
+  - term: "API"
+    translation: "API"
+    note: "не переводить"
+  - term: "machine learning"
+    translation: "машинное обучение"
