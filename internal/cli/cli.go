@@ -71,14 +71,16 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().BoolVar(&preserveFormat, "preserve-format", false, "Preserve formatting (markdown, html)")
 	rootCmd.Flags().BoolVarP(&strongMode, "strong", "s", false, "Check for absence of source language in translation")
 	rootCmd.Flags().IntVar(&strongRetries, "strong-retries", 3, "Number of retries for strong mode")
-	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")
+	rootCmd.Flags().BoolVar(&verbose, "verbose", false, "Verbose output")
 	rootCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Quiet mode (only result)")
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show request without sending")
 	rootCmd.Flags().StringVarP(&proxyURL, "proxy", "x", "", "Proxy server URL")
 	rootCmd.Flags().StringVar(&proxyAuth, "proxy-auth", "", "Proxy authentication (user:pass)")
 	rootCmd.Flags().BoolVar(&noProxy, "no-proxy", false, "Ignore proxy from config")
-	rootCmd.Flags().Bool("version", false, "Show version")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
+
+	rootCmd.Version = Version
+	rootCmd.SetVersionTemplate("llm-translate version {{.Version}}\n")
 
 	versionCmd := &cobra.Command{
 		Use:   "version",
