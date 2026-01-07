@@ -140,6 +140,10 @@ proxy:
 |------|-------|-------------|---------|
 | `--input` | `-i` | Input file | stdin |
 | `--output` | `-o` | Output file | stdout |
+| `--dir` | `-d` | Input directory for recursive translation | - |
+| `--ext` | | File extensions to translate | .md,.txt |
+| `--suffix` | | Output file suffix (e.g., _ru) | _\<lang\> |
+| `--prefix` | | Output file prefix (e.g., ru_) | - |
 | `--from` | `-f` | Source language | auto |
 | `--to` | `-t` | Target language | en |
 | `--provider` | `-p` | LLM provider | from config |
@@ -159,6 +163,30 @@ proxy:
 | `--help` | `-h` | Show help | - |
 
 ## Advanced Features
+
+### Directory Translation
+
+Translate all files in a directory recursively:
+
+```bash
+# Translate all .md and .txt files (default extensions)
+llm-translate -d ./docs -t ru
+
+# Output: file.md -> file_ru.md
+
+# Custom suffix
+llm-translate -d ./docs -t ru --suffix _russian
+# Output: file.md -> file_russian.md
+
+# Use prefix instead
+llm-translate -d ./docs -t ru --prefix ru_
+# Output: file.md -> ru_file.md
+
+# Specific extensions
+llm-translate -d ./content -t ru --ext ".md,.html"
+
+# Already translated files are automatically skipped
+```
 
 ### Translation Styles
 
@@ -221,10 +249,11 @@ llm-translate -i README.md -o README_ru.md -t ru --preserve-format
 ### Batch Translation
 
 ```bash
-# Translate all .txt files in a directory
-for file in *.txt; do
-  llm-translate -i "$file" -o "${file%.txt}_ru.txt" -t ru
-done
+# Translate all files in a directory
+llm-translate -d ./docs -t ru
+
+# Translate only markdown files with custom suffix
+llm-translate -d ./content -t ru --ext ".md" --suffix _translated
 ```
 
 ### Pipeline Integration
