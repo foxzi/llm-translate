@@ -156,10 +156,16 @@ func runTranslate(ctx context.Context) error {
 		return fmt.Errorf("input is empty")
 	}
 
+	// Extract frontmatter if present
+	frontmatter, content := extractFrontmatter(string(inputText))
+
 	if verbose {
 		logInfo("Provider: %s, Model: %s", cfg.DefaultProvider, getModelForProvider(cfg))
 		logInfo("Source language: %s, Target language: %s", sourceLang, targetLang)
-		logInfo("Input size: %d characters", len(inputText))
+		logInfo("Input size: %d characters", len(content))
+		if frontmatter != "" {
+			logInfo("Frontmatter detected and will be preserved")
+		}
 	}
 
 	if dryRun {
@@ -169,14 +175,14 @@ func runTranslate(ctx context.Context) error {
 		logInfo("Source: %s -> Target: %s", sourceLang, targetLang)
 		logInfo("Temperature: %.2f", temperature)
 		logInfo("Max tokens: %d", maxTokens)
-		logInfo("Text preview (first 200 chars): %s", truncateText(string(inputText), 200))
+		logInfo("Text preview (first 200 chars): %s", truncateText(content, 200))
 		return nil
 	}
 
 	t := translator.New(cfg, verbose)
-	
+
 	req := translator.TranslateRequest{
-		Text:           string(inputText),
+		Text:           content,
 		SourceLang:     sourceLang,
 		TargetLang:     targetLang,
 		Style:          style,
@@ -201,7 +207,8 @@ func runTranslate(ctx context.Context) error {
 		return fmt.Errorf("translation failed: %w", err)
 	}
 
-	finalOutput := result.Text
+	// Collect frontmatter updates
+	fmUpdates := make(map[string]interface{})
 
 	if cfg.Settings.Sentiment {
 		if verbose {
@@ -213,7 +220,8 @@ func runTranslate(ctx context.Context) error {
 				logWarn("Sentiment analysis failed: %v", err)
 			}
 		} else {
-			finalOutput += fmt.Sprintf("\n\n---\nSentiment: %s (%.2f)\n", sentimentResult.Sentiment, sentimentResult.Score)
+			fmUpdates["sentiment"] = sentimentResult.Sentiment
+			fmUpdates["sentiment_score"] = sentimentResult.Score
 		}
 	}
 
@@ -227,9 +235,17 @@ func runTranslate(ctx context.Context) error {
 				logWarn("Tags extraction failed: %v", err)
 			}
 		} else {
-			finalOutput += fmt.Sprintf("\n\n---\nTags: %s\n", strings.Join(tagsResult.Tags, ", "))
+			fmUpdates["tags"] = tagsResult.Tags
 		}
 	}
+
+	// Update frontmatter with sentiment/tags if any
+	if len(fmUpdates) > 0 {
+		frontmatter = updateFrontmatter(frontmatter, fmUpdates)
+	}
+
+	// Combine frontmatter with translated content
+	finalOutput := frontmatter + result.Text
 
 	if _, err := output.Write([]byte(finalOutput)); err != nil {
 		return fmt.Errorf("failed to write output: %w", err)
@@ -347,6 +363,90 @@ func truncateText(text string, maxLen int) string {
 		return text
 	}
 	return text[:maxLen] + "..."
+}
+
+// extractFrontmatter extracts YAML frontmatter from markdown content.
+// Returns frontmatter (with delimiters) and remaining content.
+// If no frontmatter found, returns empty string and original content.
+func extractFrontmatter(text string) (string, string) {
+	if !strings.HasPrefix(text, "---") {
+		return "", text
+	}
+
+	// Find the closing ---
+	rest := text[3:]
+	idx := strings.Index(rest, "\n---")
+	if idx == -1 {
+		return "", text
+	}
+
+	// Include the closing --- and newline
+	endIdx := 3 + idx + 4 // "---" + content + "\n---"
+
+	// Check if there's a newline after closing ---
+	if endIdx < len(text) && text[endIdx] == '\n' {
+		endIdx++
+	}
+
+	frontmatter := text[:endIdx]
+	content := text[endIdx:]
+
+	return frontmatter, content
+}
+
+// parseFrontmatter parses frontmatter string into a map.
+// Returns nil if parsing fails.
+func parseFrontmatter(frontmatter string) map[string]interface{} {
+	if frontmatter == "" {
+		return nil
+	}
+
+	// Remove --- delimiters
+	content := strings.TrimPrefix(frontmatter, "---")
+	if idx := strings.Index(content, "\n---"); idx != -1 {
+		content = content[:idx]
+	}
+	content = strings.TrimSpace(content)
+
+	if content == "" {
+		return make(map[string]interface{})
+	}
+
+	var data map[string]interface{}
+	if err := yaml.Unmarshal([]byte(content), &data); err != nil {
+		return nil
+	}
+
+	return data
+}
+
+// buildFrontmatter creates frontmatter string from a map.
+func buildFrontmatter(data map[string]interface{}) string {
+	if len(data) == 0 {
+		return ""
+	}
+
+	out, err := yaml.Marshal(data)
+	if err != nil {
+		return ""
+	}
+
+	return "---\n" + string(out) + "---\n"
+}
+
+// updateFrontmatter adds or updates fields in frontmatter.
+// If frontmatter is empty, creates a new one.
+func updateFrontmatter(frontmatter string, updates map[string]interface{}) string {
+	data := parseFrontmatter(frontmatter)
+	if data == nil {
+		data = make(map[string]interface{})
+	}
+
+	for k, v := range updates {
+		data[k] = v
+	}
+
+	return buildFrontmatter(data)
 }
 
 func logInfo(format string, args ...interface{}) {
@@ -511,8 +611,11 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 		return fmt.Errorf("file is empty")
 	}
 
+	// Extract frontmatter if present
+	frontmatter, content := extractFrontmatter(string(inputText))
+
 	req := translator.TranslateRequest{
-		Text:           string(inputText),
+		Text:           content,
 		SourceLang:     sourceLang,
 		TargetLang:     targetLang,
 		Style:          style,
@@ -530,7 +633,8 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 		return err
 	}
 
-	finalOutput := result.Text
+	// Collect frontmatter updates
+	fmUpdates := make(map[string]interface{})
 
 	if cfg.Settings.Sentiment {
 		sentimentResult, err := t.AnalyzeSentiment(ctx, result.Text)
@@ -539,7 +643,8 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 				logWarn("Sentiment analysis failed: %v", err)
 			}
 		} else {
-			finalOutput += fmt.Sprintf("\n\n---\nSentiment: %s (%.2f)\n", sentimentResult.Sentiment, sentimentResult.Score)
+			fmUpdates["sentiment"] = sentimentResult.Sentiment
+			fmUpdates["sentiment_score"] = sentimentResult.Score
 		}
 	}
 
@@ -550,9 +655,17 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 				logWarn("Tags extraction failed: %v", err)
 			}
 		} else {
-			finalOutput += fmt.Sprintf("\n\n---\nTags: %s\n", strings.Join(tagsResult.Tags, ", "))
+			fmUpdates["tags"] = tagsResult.Tags
 		}
 	}
+
+	// Update frontmatter with sentiment/tags if any
+	if len(fmUpdates) > 0 {
+		frontmatter = updateFrontmatter(frontmatter, fmUpdates)
+	}
+
+	// Combine frontmatter with translated content
+	finalOutput := frontmatter + result.Text
 
 	if err := os.WriteFile(outputPath, []byte(finalOutput), 0644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
