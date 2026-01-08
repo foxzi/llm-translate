@@ -146,6 +146,104 @@ func (p *OllamaProvider) ValidateConfig() error {
 	return nil
 }
 
+func (p *OllamaProvider) AnalyzeSentiment(ctx context.Context, text string) (SentimentResponse, error) {
+	ollamaReq := ollamaRequest{
+		Model:  p.config.Model,
+		System: SentimentPrompt,
+		Prompt: text,
+		Stream: false,
+		Options: ollamaOptions{
+			Temperature: 0.1,
+			NumPredict:  100,
+		},
+	}
+
+	jsonData, err := json.Marshal(ollamaReq)
+	if err != nil {
+		return SentimentResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/api/generate"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return SentimentResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return SentimentResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return SentimentResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var ollamaResp ollamaResponse
+	if err := json.Unmarshal(body, &ollamaResp); err != nil {
+		return SentimentResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if ollamaResp.Error != "" {
+		return SentimentResponse{}, fmt.Errorf("Ollama API error: %s", ollamaResp.Error)
+	}
+
+	return ParseSentimentResponse(ollamaResp.Response)
+}
+
+func (p *OllamaProvider) ExtractTags(ctx context.Context, text string, count int) (TagsResponse, error) {
+	tagsPrompt := fmt.Sprintf(TagsPromptTemplate, count)
+
+	ollamaReq := ollamaRequest{
+		Model:  p.config.Model,
+		System: tagsPrompt,
+		Prompt: text,
+		Stream: false,
+		Options: ollamaOptions{
+			Temperature: 0.3,
+			NumPredict:  200,
+		},
+	}
+
+	jsonData, err := json.Marshal(ollamaReq)
+	if err != nil {
+		return TagsResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/api/generate"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return TagsResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return TagsResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return TagsResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var ollamaResp ollamaResponse
+	if err := json.Unmarshal(body, &ollamaResp); err != nil {
+		return TagsResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if ollamaResp.Error != "" {
+		return TagsResponse{}, fmt.Errorf("Ollama API error: %s", ollamaResp.Error)
+	}
+
+	return ParseTagsResponse(ollamaResp.Response)
+}
+
 func init() {
 	Register("ollama", NewOllamaProvider)
 }

@@ -13,6 +13,7 @@ A powerful command-line tool for translating text between languages using variou
 - **Proxy Support**: HTTP, HTTPS, and SOCKS5 proxy configuration
 - **Retry Logic**: Automatic retries with exponential backoff
 - **Configurable**: YAML configuration files with environment variable support
+- **Text Analysis**: Sentiment analysis and tag extraction for translated text
 
 ## Installation
 
@@ -156,6 +157,8 @@ proxy:
 | `--glossary` | `-g` | Glossary file | - |
 | `--preserve-format` | | Keep formatting | false |
 | `--strong` | `-s` | Strong validation mode | false |
+| `--sentiment` | | Analyze sentiment of translated text | false |
+| `--tags` | | Extract N tags from text (0 to disable) | 0 |
 | `--verbose` | | Verbose output | false |
 | `--version` | `-v` | Show version | - |
 | `--quiet` | `-q` | Quiet mode | false |
@@ -223,6 +226,31 @@ Ensures the translation doesn't contain untranslated source language text:
 
 ```bash
 llm-translate -i document.txt -o document_ru.txt -f en -t ru --strong
+```
+
+### Text Analysis
+
+Analyze translated text for sentiment and extract key tags:
+
+```bash
+# Analyze sentiment of translated text
+llm-translate -i article.txt -o article_ru.txt -t ru --sentiment
+# Output includes: Sentiment: positive (0.75)
+
+# Extract 5 tags from translated text
+llm-translate -i article.txt -o article_ru.txt -t ru --tags 5
+# Output includes: Tags: technology, innovation, future, ai, research
+
+# Combine both
+llm-translate -i article.txt -o article_ru.txt -t ru --sentiment --tags 5
+```
+
+Configuration in YAML:
+
+```yaml
+settings:
+  sentiment: true
+  tags_count: 5
 ```
 
 ### Proxy Configuration

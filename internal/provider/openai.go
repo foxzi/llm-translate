@@ -156,6 +156,124 @@ func (p *OpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (T
 	}, nil
 }
 
+func (p *OpenAIProvider) AnalyzeSentiment(ctx context.Context, text string) (SentimentResponse, error) {
+	openAIReq := openAIRequest{
+		Model:       p.config.Model,
+		Temperature: 0.1,
+		MaxTokens:   100,
+		Messages: []message{
+			{
+				Role:    "system",
+				Content: SentimentPrompt,
+			},
+			{
+				Role:    "user",
+				Content: text,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(openAIReq)
+	if err != nil {
+		return SentimentResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/chat/completions"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return SentimentResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return SentimentResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return SentimentResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var openAIResp openAIResponse
+	if err := json.Unmarshal(body, &openAIResp); err != nil {
+		return SentimentResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if openAIResp.Error != nil {
+		return SentimentResponse{}, fmt.Errorf("OpenAI API error: %s", openAIResp.Error.Message)
+	}
+
+	if len(openAIResp.Choices) == 0 {
+		return SentimentResponse{}, fmt.Errorf("no choices in response")
+	}
+
+	return ParseSentimentResponse(openAIResp.Choices[0].Message.Content)
+}
+
+func (p *OpenAIProvider) ExtractTags(ctx context.Context, text string, count int) (TagsResponse, error) {
+	tagsPrompt := fmt.Sprintf(TagsPromptTemplate, count)
+
+	openAIReq := openAIRequest{
+		Model:       p.config.Model,
+		Temperature: 0.3,
+		MaxTokens:   200,
+		Messages: []message{
+			{
+				Role:    "system",
+				Content: tagsPrompt,
+			},
+			{
+				Role:    "user",
+				Content: text,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(openAIReq)
+	if err != nil {
+		return TagsResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/chat/completions"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return TagsResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return TagsResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return TagsResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var openAIResp openAIResponse
+	if err := json.Unmarshal(body, &openAIResp); err != nil {
+		return TagsResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if openAIResp.Error != nil {
+		return TagsResponse{}, fmt.Errorf("OpenAI API error: %s", openAIResp.Error.Message)
+	}
+
+	if len(openAIResp.Choices) == 0 {
+		return TagsResponse{}, fmt.Errorf("no choices in response")
+	}
+
+	return ParseTagsResponse(openAIResp.Choices[0].Message.Content)
+}
+
 func init() {
 	Register("openai", NewOpenAIProvider)
 }

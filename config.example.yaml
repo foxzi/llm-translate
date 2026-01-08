@@ -17,6 +17,10 @@ settings:
   retry_count: 3
   retry_delay: 1
 
+  # Text analysis (added to end of output)
+  sentiment: false       # Analyze sentiment of translated text
+  tags_count: 0          # Extract N tags from text (0 = disabled)
+
 # Strong validation settings (--strong mode)
 strong_validation:
   enabled: false

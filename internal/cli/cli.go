@@ -46,6 +46,8 @@ var (
 	proxyURL         string
 	proxyAuth        string
 	noProxy          bool
+	sentiment        bool
+	tagsCount        int
 )
 
 func Execute(ctx context.Context) error {
@@ -87,6 +89,8 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().StringVarP(&proxyURL, "proxy", "x", "", "Proxy server URL")
 	rootCmd.Flags().StringVar(&proxyAuth, "proxy-auth", "", "Proxy authentication (user:pass)")
 	rootCmd.Flags().BoolVar(&noProxy, "no-proxy", false, "Ignore proxy from config")
+	rootCmd.Flags().BoolVar(&sentiment, "sentiment", false, "Analyze sentiment of translated text")
+	rootCmd.Flags().IntVar(&tagsCount, "tags", 0, "Extract N tags from translated text (0 to disable)")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 
 	rootCmd.Version = Version
@@ -197,7 +201,37 @@ func runTranslate(ctx context.Context) error {
 		return fmt.Errorf("translation failed: %w", err)
 	}
 
-	if _, err := output.Write([]byte(result.Text)); err != nil {
+	finalOutput := result.Text
+
+	if cfg.Settings.Sentiment {
+		if verbose {
+			logInfo("Analyzing sentiment...")
+		}
+		sentimentResult, err := t.AnalyzeSentiment(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Sentiment analysis failed: %v", err)
+			}
+		} else {
+			finalOutput += fmt.Sprintf("\n\n---\nSentiment: %s (%.2f)\n", sentimentResult.Sentiment, sentimentResult.Score)
+		}
+	}
+
+	if cfg.Settings.TagsCount > 0 {
+		if verbose {
+			logInfo("Extracting %d tags...", cfg.Settings.TagsCount)
+		}
+		tagsResult, err := t.ExtractTags(ctx, result.Text, cfg.Settings.TagsCount)
+		if err != nil {
+			if verbose {
+				logWarn("Tags extraction failed: %v", err)
+			}
+		} else {
+			finalOutput += fmt.Sprintf("\n\n---\nTags: %s\n", strings.Join(tagsResult.Tags, ", "))
+		}
+	}
+
+	if _, err := output.Write([]byte(finalOutput)); err != nil {
 		return fmt.Errorf("failed to write output: %w", err)
 	}
 
@@ -255,7 +289,15 @@ func applyCLIOverrides(cfg *config.Config) {
 	if noProxy {
 		cfg.Proxy.URL = ""
 	}
-	
+
+	if sentiment {
+		cfg.Settings.Sentiment = sentiment
+	}
+
+	if tagsCount > 0 {
+		cfg.Settings.TagsCount = tagsCount
+	}
+
 	providerCfg, ok := cfg.Providers[cfg.DefaultProvider]
 	if !ok {
 		providerCfg = config.ProviderConfig{}
@@ -371,7 +413,7 @@ func runDirectoryTranslate(ctx context.Context, cfg *config.Config) error {
 		outputPath := generateOutputPath(inputPath, outSuffix, outPrefix, targetLang)
 		logInfo("[%d/%d] %s -> %s", i+1, len(files), filepath.Base(inputPath), filepath.Base(outputPath))
 
-		if err := translateFile(ctx, t, inputPath, outputPath, glossary); err != nil {
+		if err := translateFile(ctx, t, cfg, inputPath, outputPath, glossary); err != nil {
 			logError("Failed to translate %s: %v", inputPath, err)
 			continue
 		}
@@ -459,7 +501,7 @@ func generateOutputPath(inputPath, suffix, prefix, lang string) string {
 	return filepath.Join(dir, newName)
 }
 
-func translateFile(ctx context.Context, t *translator.Translator, inputPath, outputPath string, glossary []config.GlossaryEntry) error {
+func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Config, inputPath, outputPath string, glossary []config.GlossaryEntry) error {
 	inputText, err := os.ReadFile(inputPath)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
@@ -488,7 +530,31 @@ func translateFile(ctx context.Context, t *translator.Translator, inputPath, out
 		return err
 	}
 
-	if err := os.WriteFile(outputPath, []byte(result.Text), 0644); err != nil {
+	finalOutput := result.Text
+
+	if cfg.Settings.Sentiment {
+		sentimentResult, err := t.AnalyzeSentiment(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Sentiment analysis failed: %v", err)
+			}
+		} else {
+			finalOutput += fmt.Sprintf("\n\n---\nSentiment: %s (%.2f)\n", sentimentResult.Sentiment, sentimentResult.Score)
+		}
+	}
+
+	if cfg.Settings.TagsCount > 0 {
+		tagsResult, err := t.ExtractTags(ctx, result.Text, cfg.Settings.TagsCount)
+		if err != nil {
+			if verbose {
+				logWarn("Tags extraction failed: %v", err)
+			}
+		} else {
+			finalOutput += fmt.Sprintf("\n\n---\nTags: %s\n", strings.Join(tagsResult.Tags, ", "))
+		}
+	}
+
+	if err := os.WriteFile(outputPath, []byte(finalOutput), 0644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 

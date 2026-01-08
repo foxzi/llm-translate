@@ -25,6 +25,8 @@ type Settings struct {
 	PreserveFormat  bool    `yaml:"preserve_format"`
 	RetryCount      int     `yaml:"retry_count"`
 	RetryDelay      int     `yaml:"retry_delay"`
+	Sentiment       bool    `yaml:"sentiment"`
+	TagsCount       int     `yaml:"tags_count"`
 }
 
 type StrongValidation struct {
@@ -75,6 +77,8 @@ func DefaultConfig() *Config {
 			PreserveFormat: false,
 			RetryCount:     3,
 			RetryDelay:     1,
+			Sentiment:      false,
+			TagsCount:      0,
 		},
 		StrongValidation: StrongValidation{
 			Enabled:    false,
