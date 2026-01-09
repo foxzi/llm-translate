@@ -74,6 +74,16 @@ settings:
   preserve_format: false
   retry_count: 3
   retry_delay: 1
+  # Analysis settings
+  sentiment: false
+  tags_count: 0
+  classify: false
+  emotions: false
+  factuality: false
+  impact: false
+  sensationalism: false
+  entities: false
+  events: false
 
 providers:
   openai:
