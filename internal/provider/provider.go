@@ -24,11 +24,24 @@ Use lowercase, single words or short phrases. No hashtags.
 
 Text to analyze:`
 
+const ClassifyPrompt = `Classify the following text into categories. Respond ONLY in this exact format:
+TOPICS: <comma-separated list from: politics, economics, technology, medicine, incidents>
+SCOPE: <comma-separated list from: regional, international>
+TYPE: <comma-separated list from: corporate, regulatory, macro>
+
+Rules:
+- Select one or more values for each category
+- Use only the exact values listed above
+- If category doesn't apply, use "none"
+
+Text to classify:`
+
 type Provider interface {
 	Name() string
 	Translate(ctx context.Context, req TranslateRequest) (TranslateResponse, error)
 	AnalyzeSentiment(ctx context.Context, text string) (SentimentResponse, error)
 	ExtractTags(ctx context.Context, text string, count int) (TagsResponse, error)
+	Classify(ctx context.Context, text string) (ClassifyResponse, error)
 	ValidateConfig() error
 }
 
@@ -58,6 +71,12 @@ type SentimentResponse struct {
 
 type TagsResponse struct {
 	Tags []string
+}
+
+type ClassifyResponse struct {
+	Topics   []string // politics, economics, technology, medicine, incidents
+	Scope    []string // regional, international
+	NewsType []string // corporate, regulatory, macro
 }
 
 type BaseProvider struct {
@@ -211,4 +230,45 @@ func ParseTagsResponse(response string) (TagsResponse, error) {
 	}
 
 	return TagsResponse{Tags: tags}, nil
+}
+
+func ParseClassifyResponse(response string) (ClassifyResponse, error) {
+	response = strings.TrimSpace(response)
+	result := ClassifyResponse{}
+
+	// Parse TOPICS
+	topicsRe := regexp.MustCompile(`(?i)TOPICS:\s*(.+)`)
+	if matches := topicsRe.FindStringSubmatch(response); len(matches) >= 2 {
+		result.Topics = parseCommaSeparated(matches[1])
+	}
+
+	// Parse SCOPE
+	scopeRe := regexp.MustCompile(`(?i)SCOPE:\s*(.+)`)
+	if matches := scopeRe.FindStringSubmatch(response); len(matches) >= 2 {
+		result.Scope = parseCommaSeparated(matches[1])
+	}
+
+	// Parse TYPE
+	typeRe := regexp.MustCompile(`(?i)TYPE:\s*(.+)`)
+	if matches := typeRe.FindStringSubmatch(response); len(matches) >= 2 {
+		result.NewsType = parseCommaSeparated(matches[1])
+	}
+
+	if len(result.Topics) == 0 && len(result.Scope) == 0 && len(result.NewsType) == 0 {
+		return ClassifyResponse{}, fmt.Errorf("invalid classify response format: %s", response)
+	}
+
+	return result, nil
+}
+
+func parseCommaSeparated(s string) []string {
+	var result []string
+	parts := strings.Split(s, ",")
+	for _, p := range parts {
+		p = strings.TrimSpace(strings.ToLower(p))
+		if p != "" && p != "none" {
+			result = append(result, p)
+		}
+	}
+	return result
 }

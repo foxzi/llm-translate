@@ -48,6 +48,7 @@ var (
 	noProxy          bool
 	sentiment        bool
 	tagsCount        int
+	classify         bool
 )
 
 func Execute(ctx context.Context) error {
@@ -91,6 +92,7 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().BoolVar(&noProxy, "no-proxy", false, "Ignore proxy from config")
 	rootCmd.Flags().BoolVar(&sentiment, "sentiment", false, "Analyze sentiment of translated text")
 	rootCmd.Flags().IntVar(&tagsCount, "tags", 0, "Extract N tags from translated text (0 to disable)")
+	rootCmd.Flags().BoolVar(&classify, "classify", false, "Classify text by topics, scope, and type")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 
 	rootCmd.Version = Version
@@ -239,7 +241,29 @@ func runTranslate(ctx context.Context) error {
 		}
 	}
 
-	// Update frontmatter with sentiment/tags if any
+	if cfg.Settings.Classify {
+		if verbose {
+			logInfo("Classifying text...")
+		}
+		classifyResult, err := t.Classify(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Classification failed: %v", err)
+			}
+		} else {
+			if len(classifyResult.Topics) > 0 {
+				fmUpdates["topics"] = classifyResult.Topics
+			}
+			if len(classifyResult.Scope) > 0 {
+				fmUpdates["scope"] = classifyResult.Scope
+			}
+			if len(classifyResult.NewsType) > 0 {
+				fmUpdates["news_type"] = classifyResult.NewsType
+			}
+		}
+	}
+
+	// Update frontmatter with sentiment/tags/classify if any
 	if len(fmUpdates) > 0 {
 		frontmatter = updateFrontmatter(frontmatter, fmUpdates)
 	}
@@ -312,6 +336,10 @@ func applyCLIOverrides(cfg *config.Config) {
 
 	if tagsCount > 0 {
 		cfg.Settings.TagsCount = tagsCount
+	}
+
+	if classify {
+		cfg.Settings.Classify = classify
 	}
 
 	providerCfg, ok := cfg.Providers[cfg.DefaultProvider]
@@ -659,7 +687,26 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 		}
 	}
 
-	// Update frontmatter with sentiment/tags if any
+	if cfg.Settings.Classify {
+		classifyResult, err := t.Classify(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Classification failed: %v", err)
+			}
+		} else {
+			if len(classifyResult.Topics) > 0 {
+				fmUpdates["topics"] = classifyResult.Topics
+			}
+			if len(classifyResult.Scope) > 0 {
+				fmUpdates["scope"] = classifyResult.Scope
+			}
+			if len(classifyResult.NewsType) > 0 {
+				fmUpdates["news_type"] = classifyResult.NewsType
+			}
+		}
+	}
+
+	// Update frontmatter with sentiment/tags/classify if any
 	if len(fmUpdates) > 0 {
 		frontmatter = updateFrontmatter(frontmatter, fmUpdates)
 	}

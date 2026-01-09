@@ -27,6 +27,7 @@ type Settings struct {
 	RetryDelay      int     `yaml:"retry_delay"`
 	Sentiment       bool    `yaml:"sentiment"`
 	TagsCount       int     `yaml:"tags_count"`
+	Classify        bool    `yaml:"classify"`
 }
 
 type StrongValidation struct {
@@ -79,6 +80,7 @@ func DefaultConfig() *Config {
 			RetryDelay:     1,
 			Sentiment:      false,
 			TagsCount:      0,
+			Classify:       false,
 		},
 		StrongValidation: StrongValidation{
 			Enabled:    false,

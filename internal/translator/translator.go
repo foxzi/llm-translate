@@ -206,6 +206,29 @@ func (t *Translator) ExtractTags(ctx context.Context, text string, count int) (p
 	return t.provider.ExtractTags(ctx, text, count)
 }
 
+func (t *Translator) Classify(ctx context.Context, text string) (provider.ClassifyResponse, error) {
+	if t.provider == nil {
+		client, err := t.createHTTPClient()
+		if err != nil {
+			return provider.ClassifyResponse{}, fmt.Errorf("failed to create HTTP client: %w", err)
+		}
+		t.client = client
+
+		providerCfg, ok := t.config.Providers[t.config.DefaultProvider]
+		if !ok {
+			return provider.ClassifyResponse{}, fmt.Errorf("provider %s not configured", t.config.DefaultProvider)
+		}
+
+		p, err := provider.Get(t.config.DefaultProvider, providerCfg, t.client)
+		if err != nil {
+			return provider.ClassifyResponse{}, fmt.Errorf("failed to initialize provider: %w", err)
+		}
+		t.provider = p
+	}
+
+	return t.provider.Classify(ctx, text)
+}
+
 func (t *Translator) translateWithRetry(ctx context.Context, req provider.TranslateRequest) (provider.TranslateResponse, error) {
 	var lastErr error
 	retryCount := t.config.Settings.RetryCount

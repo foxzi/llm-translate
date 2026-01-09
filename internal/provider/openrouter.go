@@ -270,6 +270,67 @@ func (p *OpenRouterProvider) ExtractTags(ctx context.Context, text string, count
 	return ParseTagsResponse(openRouterResp.Choices[0].Message.Content)
 }
 
+func (p *OpenRouterProvider) Classify(ctx context.Context, text string) (ClassifyResponse, error) {
+	openRouterReq := openRouterRequest{
+		Model:       p.config.Model,
+		Temperature: 0.1,
+		MaxTokens:   200,
+		Stream:      false,
+		Messages: []message{
+			{
+				Role:    "system",
+				Content: ClassifyPrompt,
+			},
+			{
+				Role:    "user",
+				Content: text,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(openRouterReq)
+	if err != nil {
+		return ClassifyResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/chat/completions"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return ClassifyResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("X-Title", "LLM Translate CLI")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return ClassifyResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ClassifyResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var openRouterResp openRouterResponse
+	if err := json.Unmarshal(body, &openRouterResp); err != nil {
+		return ClassifyResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if openRouterResp.Error != nil {
+		return ClassifyResponse{}, fmt.Errorf("OpenRouter API error: %s", openRouterResp.Error.Message)
+	}
+
+	if len(openRouterResp.Choices) == 0 {
+		return ClassifyResponse{}, fmt.Errorf("no choices in response")
+	}
+
+	return ParseClassifyResponse(openRouterResp.Choices[0].Message.Content)
+}
+
 func init() {
 	Register("openrouter", NewOpenRouterProvider)
 }
