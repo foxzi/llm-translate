@@ -36,12 +36,29 @@ Rules:
 
 Text to classify:`
 
+const EmotionsPrompt = `Analyze the emotional tone of the following text. Respond ONLY in this exact format:
+EMOTIONS: <comma-separated list of detected emotions with scores>
+
+Available emotions and format:
+fear:<0.0-1.0>, anger:<0.0-1.0>, hope:<0.0-1.0>, uncertainty:<0.0-1.0>, optimism:<0.0-1.0>, panic:<0.0-1.0>
+
+Rules:
+- Include only emotions with score > 0.1
+- Score represents intensity (0.0 = absent, 1.0 = very strong)
+- List emotions in descending order by score
+
+Example response:
+EMOTIONS: fear:0.8, uncertainty:0.6, panic:0.3
+
+Text to analyze:`
+
 type Provider interface {
 	Name() string
 	Translate(ctx context.Context, req TranslateRequest) (TranslateResponse, error)
 	AnalyzeSentiment(ctx context.Context, text string) (SentimentResponse, error)
 	ExtractTags(ctx context.Context, text string, count int) (TagsResponse, error)
 	Classify(ctx context.Context, text string) (ClassifyResponse, error)
+	AnalyzeEmotions(ctx context.Context, text string) (EmotionsResponse, error)
 	ValidateConfig() error
 }
 
@@ -77,6 +94,10 @@ type ClassifyResponse struct {
 	Topics   []string // politics, economics, technology, medicine, incidents
 	Scope    []string // regional, international
 	NewsType []string // corporate, regulatory, macro
+}
+
+type EmotionsResponse struct {
+	Emotions map[string]float64 // emotion -> intensity (0.0-1.0)
 }
 
 type BaseProvider struct {
@@ -271,4 +292,37 @@ func parseCommaSeparated(s string) []string {
 		}
 	}
 	return result
+}
+
+func ParseEmotionsResponse(response string) (EmotionsResponse, error) {
+	response = strings.TrimSpace(response)
+	result := EmotionsResponse{
+		Emotions: make(map[string]float64),
+	}
+
+	re := regexp.MustCompile(`(?i)EMOTIONS:\s*(.+)`)
+	matches := re.FindStringSubmatch(response)
+
+	if len(matches) < 2 {
+		return EmotionsResponse{}, fmt.Errorf("invalid emotions response format: %s", response)
+	}
+
+	emotionRe := regexp.MustCompile(`(\w+):([0-9.]+)`)
+	emotionMatches := emotionRe.FindAllStringSubmatch(matches[1], -1)
+
+	for _, m := range emotionMatches {
+		if len(m) >= 3 {
+			emotion := strings.ToLower(m[1])
+			score, err := strconv.ParseFloat(m[2], 64)
+			if err == nil && score > 0 {
+				result.Emotions[emotion] = score
+			}
+		}
+	}
+
+	if len(result.Emotions) == 0 {
+		return EmotionsResponse{}, fmt.Errorf("no emotions found in response")
+	}
+
+	return result, nil
 }

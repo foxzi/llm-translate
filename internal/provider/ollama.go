@@ -292,6 +292,54 @@ func (p *OllamaProvider) Classify(ctx context.Context, text string) (ClassifyRes
 	return ParseClassifyResponse(ollamaResp.Response)
 }
 
+func (p *OllamaProvider) AnalyzeEmotions(ctx context.Context, text string) (EmotionsResponse, error) {
+	ollamaReq := ollamaRequest{
+		Model:  p.config.Model,
+		System: EmotionsPrompt,
+		Prompt: text,
+		Stream: false,
+		Options: ollamaOptions{
+			Temperature: 0.1,
+			NumPredict:  200,
+		},
+	}
+
+	jsonData, err := json.Marshal(ollamaReq)
+	if err != nil {
+		return EmotionsResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/api/generate"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return EmotionsResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return EmotionsResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return EmotionsResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var ollamaResp ollamaResponse
+	if err := json.Unmarshal(body, &ollamaResp); err != nil {
+		return EmotionsResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if ollamaResp.Error != "" {
+		return EmotionsResponse{}, fmt.Errorf("Ollama API error: %s", ollamaResp.Error)
+	}
+
+	return ParseEmotionsResponse(ollamaResp.Response)
+}
+
 func init() {
 	Register("ollama", NewOllamaProvider)
 }

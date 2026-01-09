@@ -352,6 +352,69 @@ func (p *AnthropicProvider) Classify(ctx context.Context, text string) (Classify
 	return ParseClassifyResponse(responseText)
 }
 
+func (p *AnthropicProvider) AnalyzeEmotions(ctx context.Context, text string) (EmotionsResponse, error) {
+	anthropicReq := anthropicRequest{
+		Model:       p.config.Model,
+		System:      EmotionsPrompt,
+		MaxTokens:   200,
+		Temperature: 0.1,
+		Messages: []anthropicMessage{
+			{
+				Role:    "user",
+				Content: text,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(anthropicReq)
+	if err != nil {
+		return EmotionsResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/v1/messages"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return EmotionsResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-api-key", p.config.APIKey)
+	httpReq.Header.Set("anthropic-version", "2023-06-01")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return EmotionsResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return EmotionsResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var anthropicResp anthropicResponse
+	if err := json.Unmarshal(body, &anthropicResp); err != nil {
+		return EmotionsResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if anthropicResp.Error != nil {
+		return EmotionsResponse{}, fmt.Errorf("Anthropic API error: %s", anthropicResp.Error.Message)
+	}
+
+	if len(anthropicResp.Content) == 0 {
+		return EmotionsResponse{}, fmt.Errorf("no content in response")
+	}
+
+	var responseText string
+	for _, content := range anthropicResp.Content {
+		if content.Type == "text" {
+			responseText += content.Text
+		}
+	}
+
+	return ParseEmotionsResponse(responseText)
+}
+
 func init() {
 	Register("anthropic", NewAnthropicProvider)
 }

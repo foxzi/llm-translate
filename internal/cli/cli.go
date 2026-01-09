@@ -49,6 +49,7 @@ var (
 	sentiment        bool
 	tagsCount        int
 	classify         bool
+	emotions         bool
 )
 
 func Execute(ctx context.Context) error {
@@ -93,6 +94,7 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().BoolVar(&sentiment, "sentiment", false, "Analyze sentiment of translated text")
 	rootCmd.Flags().IntVar(&tagsCount, "tags", 0, "Extract N tags from translated text (0 to disable)")
 	rootCmd.Flags().BoolVar(&classify, "classify", false, "Classify text by topics, scope, and type")
+	rootCmd.Flags().BoolVar(&emotions, "emotions", false, "Analyze emotions (fear, anger, hope, uncertainty, optimism, panic)")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 
 	rootCmd.Version = Version
@@ -263,7 +265,23 @@ func runTranslate(ctx context.Context) error {
 		}
 	}
 
-	// Update frontmatter with sentiment/tags/classify if any
+	if cfg.Settings.Emotions {
+		if verbose {
+			logInfo("Analyzing emotions...")
+		}
+		emotionsResult, err := t.AnalyzeEmotions(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Emotions analysis failed: %v", err)
+			}
+		} else {
+			if len(emotionsResult.Emotions) > 0 {
+				fmUpdates["emotions"] = emotionsResult.Emotions
+			}
+		}
+	}
+
+	// Update frontmatter with analysis results if any
 	if len(fmUpdates) > 0 {
 		frontmatter = updateFrontmatter(frontmatter, fmUpdates)
 	}
@@ -340,6 +358,10 @@ func applyCLIOverrides(cfg *config.Config) {
 
 	if classify {
 		cfg.Settings.Classify = classify
+	}
+
+	if emotions {
+		cfg.Settings.Emotions = emotions
 	}
 
 	providerCfg, ok := cfg.Providers[cfg.DefaultProvider]
@@ -706,7 +728,20 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 		}
 	}
 
-	// Update frontmatter with sentiment/tags/classify if any
+	if cfg.Settings.Emotions {
+		emotionsResult, err := t.AnalyzeEmotions(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Emotions analysis failed: %v", err)
+			}
+		} else {
+			if len(emotionsResult.Emotions) > 0 {
+				fmUpdates["emotions"] = emotionsResult.Emotions
+			}
+		}
+	}
+
+	// Update frontmatter with analysis results if any
 	if len(fmUpdates) > 0 {
 		frontmatter = updateFrontmatter(frontmatter, fmUpdates)
 	}
