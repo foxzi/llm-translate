@@ -575,6 +575,128 @@ func (p *OpenRouterProvider) AnalyzeSensationalism(ctx context.Context, text str
 	return ParseSensationalismResponse(openRouterResp.Choices[0].Message.Content)
 }
 
+func (p *OpenRouterProvider) ExtractEntities(ctx context.Context, text string) (EntitiesResponse, error) {
+	openRouterReq := openRouterRequest{
+		Model:       p.config.Model,
+		Temperature: 0.1,
+		MaxTokens:   300,
+		Stream:      false,
+		Messages: []message{
+			{
+				Role:    "system",
+				Content: EntitiesPrompt,
+			},
+			{
+				Role:    "user",
+				Content: text,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(openRouterReq)
+	if err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/chat/completions"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("X-Title", "LLM Translate CLI")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var openRouterResp openRouterResponse
+	if err := json.Unmarshal(body, &openRouterResp); err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if openRouterResp.Error != nil {
+		return EntitiesResponse{}, fmt.Errorf("OpenRouter API error: %s", openRouterResp.Error.Message)
+	}
+
+	if len(openRouterResp.Choices) == 0 {
+		return EntitiesResponse{}, fmt.Errorf("no choices in response")
+	}
+
+	return ParseEntitiesResponse(openRouterResp.Choices[0].Message.Content)
+}
+
+func (p *OpenRouterProvider) ExtractEvents(ctx context.Context, text string) (EventsResponse, error) {
+	openRouterReq := openRouterRequest{
+		Model:       p.config.Model,
+		Temperature: 0.1,
+		MaxTokens:   200,
+		Stream:      false,
+		Messages: []message{
+			{
+				Role:    "system",
+				Content: EventsPrompt,
+			},
+			{
+				Role:    "user",
+				Content: text,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(openRouterReq)
+	if err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/chat/completions"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("X-Title", "LLM Translate CLI")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var openRouterResp openRouterResponse
+	if err := json.Unmarshal(body, &openRouterResp); err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if openRouterResp.Error != nil {
+		return EventsResponse{}, fmt.Errorf("OpenRouter API error: %s", openRouterResp.Error.Message)
+	}
+
+	if len(openRouterResp.Choices) == 0 {
+		return EventsResponse{}, fmt.Errorf("no choices in response")
+	}
+
+	return ParseEventsResponse(openRouterResp.Choices[0].Message.Content)
+}
+
 func init() {
 	Register("openrouter", NewOpenRouterProvider)
 }

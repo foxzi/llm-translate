@@ -84,6 +84,42 @@ AFFECTED: business, investors, consumers
 
 Text to analyze:`
 
+const EntitiesPrompt = `Extract named entities from the following text. Respond ONLY in this exact format:
+PERSONS: <comma-separated list of person names>
+ORGANIZATIONS: <comma-separated list of organization names>
+LOCATIONS: <comma-separated list of locations/places>
+DATES: <comma-separated list of dates/time references>
+AMOUNTS: <comma-separated list of monetary amounts, percentages, numbers>
+
+Rules:
+- Extract only entities explicitly mentioned in the text
+- Use "none" if no entities found for a category
+- Keep original names/values as they appear
+
+Example response:
+PERSONS: John Smith, Maria Garcia
+ORGANIZATIONS: Apple Inc, European Union
+LOCATIONS: New York, Germany
+DATES: January 2024, last week
+AMOUNTS: $5 million, 15%, 1000 units
+
+Text to analyze:`
+
+const EventsPrompt = `Extract key events mentioned in the following text. Respond ONLY in this exact format:
+EVENTS: <semicolon-separated list of events>
+
+Rules:
+- Each event should be a brief phrase (3-10 words)
+- Extract only actual events/actions mentioned
+- Include who/what and action when possible
+- Maximum 5 most important events
+- Use "none" if no clear events found
+
+Example response:
+EVENTS: company announced quarterly results; CEO resigned from position; new product launched in Europe
+
+Text to analyze:`
+
 const SensationalismPrompt = `Analyze the sensationalism level of the following text. Respond ONLY in this exact format:
 SENSATIONALISM: <type> (<confidence 0.0-1.0>)
 MARKERS: <comma-separated list of detected markers>
@@ -113,6 +149,8 @@ type Provider interface {
 	AnalyzeFactuality(ctx context.Context, text string) (FactualityResponse, error)
 	AnalyzeImpact(ctx context.Context, text string) (ImpactResponse, error)
 	AnalyzeSensationalism(ctx context.Context, text string) (SensationalismResponse, error)
+	ExtractEntities(ctx context.Context, text string) (EntitiesResponse, error)
+	ExtractEvents(ctx context.Context, text string) (EventsResponse, error)
 	ValidateConfig() error
 }
 
@@ -168,6 +206,18 @@ type SensationalismResponse struct {
 	Type       string   // neutral, emotional, clickbait, manipulative
 	Confidence float64  // 0.0-1.0
 	Markers    []string // detected sensationalism markers
+}
+
+type EntitiesResponse struct {
+	Persons       []string // person names
+	Organizations []string // organization names
+	Locations     []string // locations/places
+	Dates         []string // dates/time references
+	Amounts       []string // monetary amounts, percentages, numbers
+}
+
+type EventsResponse struct {
+	Events []string // key events mentioned
 }
 
 type BaseProvider struct {
@@ -460,6 +510,66 @@ func ParseSensationalismResponse(response string) (SensationalismResponse, error
 
 	if result.Type == "" {
 		return SensationalismResponse{}, fmt.Errorf("invalid sensationalism response format: %s", response)
+	}
+
+	return result, nil
+}
+
+func ParseEntitiesResponse(response string) (EntitiesResponse, error) {
+	response = strings.TrimSpace(response)
+	result := EntitiesResponse{}
+
+	// Parse PERSONS
+	personsRe := regexp.MustCompile(`(?i)PERSONS:\s*(.+)`)
+	if matches := personsRe.FindStringSubmatch(response); len(matches) >= 2 {
+		result.Persons = parseCommaSeparated(matches[1])
+	}
+
+	// Parse ORGANIZATIONS
+	orgsRe := regexp.MustCompile(`(?i)ORGANIZATIONS:\s*(.+)`)
+	if matches := orgsRe.FindStringSubmatch(response); len(matches) >= 2 {
+		result.Organizations = parseCommaSeparated(matches[1])
+	}
+
+	// Parse LOCATIONS
+	locsRe := regexp.MustCompile(`(?i)LOCATIONS:\s*(.+)`)
+	if matches := locsRe.FindStringSubmatch(response); len(matches) >= 2 {
+		result.Locations = parseCommaSeparated(matches[1])
+	}
+
+	// Parse DATES
+	datesRe := regexp.MustCompile(`(?i)DATES:\s*(.+)`)
+	if matches := datesRe.FindStringSubmatch(response); len(matches) >= 2 {
+		result.Dates = parseCommaSeparated(matches[1])
+	}
+
+	// Parse AMOUNTS
+	amountsRe := regexp.MustCompile(`(?i)AMOUNTS:\s*(.+)`)
+	if matches := amountsRe.FindStringSubmatch(response); len(matches) >= 2 {
+		result.Amounts = parseCommaSeparated(matches[1])
+	}
+
+	return result, nil
+}
+
+func ParseEventsResponse(response string) (EventsResponse, error) {
+	response = strings.TrimSpace(response)
+	result := EventsResponse{}
+
+	re := regexp.MustCompile(`(?i)EVENTS:\s*(.+)`)
+	matches := re.FindStringSubmatch(response)
+
+	if len(matches) >= 2 {
+		eventsStr := matches[1]
+		if strings.ToLower(strings.TrimSpace(eventsStr)) != "none" {
+			parts := strings.Split(eventsStr, ";")
+			for _, p := range parts {
+				p = strings.TrimSpace(p)
+				if p != "" && strings.ToLower(p) != "none" {
+					result.Events = append(result.Events, p)
+				}
+			}
+		}
 	}
 
 	return result, nil

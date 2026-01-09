@@ -674,6 +674,148 @@ func (p *GoogleProvider) AnalyzeSensationalism(ctx context.Context, text string)
 	return ParseSensationalismResponse(responseText)
 }
 
+func (p *GoogleProvider) ExtractEntities(ctx context.Context, text string) (EntitiesResponse, error) {
+	googleReq := googleRequest{
+		Contents: []googleContent{
+			{
+				Parts: []googlePart{
+					{Text: text},
+				},
+				Role: "user",
+			},
+		},
+		GenerationConfig: googleGenConfig{
+			Temperature:     0.1,
+			MaxOutputTokens: 300,
+		},
+		SystemInstruction: &googleContent{
+			Parts: []googlePart{
+				{Text: EntitiesPrompt},
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(googleReq)
+	if err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+		strings.TrimRight(p.config.BaseURL, "/"),
+		p.config.Model,
+		p.config.APIKey,
+	)
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var googleResp googleResponse
+	if err := json.Unmarshal(body, &googleResp); err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if googleResp.Error != nil {
+		return EntitiesResponse{}, fmt.Errorf("Google API error: %s", googleResp.Error.Message)
+	}
+
+	if len(googleResp.Candidates) == 0 {
+		return EntitiesResponse{}, fmt.Errorf("no candidates in response")
+	}
+
+	var responseText string
+	for _, part := range googleResp.Candidates[0].Content.Parts {
+		responseText += part.Text
+	}
+
+	return ParseEntitiesResponse(responseText)
+}
+
+func (p *GoogleProvider) ExtractEvents(ctx context.Context, text string) (EventsResponse, error) {
+	googleReq := googleRequest{
+		Contents: []googleContent{
+			{
+				Parts: []googlePart{
+					{Text: text},
+				},
+				Role: "user",
+			},
+		},
+		GenerationConfig: googleGenConfig{
+			Temperature:     0.1,
+			MaxOutputTokens: 200,
+		},
+		SystemInstruction: &googleContent{
+			Parts: []googlePart{
+				{Text: EventsPrompt},
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(googleReq)
+	if err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+		strings.TrimRight(p.config.BaseURL, "/"),
+		p.config.Model,
+		p.config.APIKey,
+	)
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var googleResp googleResponse
+	if err := json.Unmarshal(body, &googleResp); err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if googleResp.Error != nil {
+		return EventsResponse{}, fmt.Errorf("Google API error: %s", googleResp.Error.Message)
+	}
+
+	if len(googleResp.Candidates) == 0 {
+		return EventsResponse{}, fmt.Errorf("no candidates in response")
+	}
+
+	var responseText string
+	for _, part := range googleResp.Candidates[0].Content.Parts {
+		responseText += part.Text
+	}
+
+	return ParseEventsResponse(responseText)
+}
+
 func init() {
 	Register("google", NewGoogleProvider)
 }

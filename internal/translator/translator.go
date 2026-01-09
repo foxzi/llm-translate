@@ -321,6 +321,52 @@ func (t *Translator) AnalyzeSensationalism(ctx context.Context, text string) (pr
 	return t.provider.AnalyzeSensationalism(ctx, text)
 }
 
+func (t *Translator) ExtractEntities(ctx context.Context, text string) (provider.EntitiesResponse, error) {
+	if t.provider == nil {
+		client, err := t.createHTTPClient()
+		if err != nil {
+			return provider.EntitiesResponse{}, fmt.Errorf("failed to create HTTP client: %w", err)
+		}
+		t.client = client
+
+		providerCfg, ok := t.config.Providers[t.config.DefaultProvider]
+		if !ok {
+			return provider.EntitiesResponse{}, fmt.Errorf("provider %s not configured", t.config.DefaultProvider)
+		}
+
+		p, err := provider.Get(t.config.DefaultProvider, providerCfg, t.client)
+		if err != nil {
+			return provider.EntitiesResponse{}, fmt.Errorf("failed to initialize provider: %w", err)
+		}
+		t.provider = p
+	}
+
+	return t.provider.ExtractEntities(ctx, text)
+}
+
+func (t *Translator) ExtractEvents(ctx context.Context, text string) (provider.EventsResponse, error) {
+	if t.provider == nil {
+		client, err := t.createHTTPClient()
+		if err != nil {
+			return provider.EventsResponse{}, fmt.Errorf("failed to create HTTP client: %w", err)
+		}
+		t.client = client
+
+		providerCfg, ok := t.config.Providers[t.config.DefaultProvider]
+		if !ok {
+			return provider.EventsResponse{}, fmt.Errorf("provider %s not configured", t.config.DefaultProvider)
+		}
+
+		p, err := provider.Get(t.config.DefaultProvider, providerCfg, t.client)
+		if err != nil {
+			return provider.EventsResponse{}, fmt.Errorf("failed to initialize provider: %w", err)
+		}
+		t.provider = p
+	}
+
+	return t.provider.ExtractEvents(ctx, text)
+}
+
 func (t *Translator) translateWithRetry(ctx context.Context, req provider.TranslateRequest) (provider.TranslateResponse, error) {
 	var lastErr error
 	retryCount := t.config.Settings.RetryCount

@@ -604,6 +604,132 @@ func (p *AnthropicProvider) AnalyzeSensationalism(ctx context.Context, text stri
 	return ParseSensationalismResponse(responseText)
 }
 
+func (p *AnthropicProvider) ExtractEntities(ctx context.Context, text string) (EntitiesResponse, error) {
+	anthropicReq := anthropicRequest{
+		Model:       p.config.Model,
+		System:      EntitiesPrompt,
+		MaxTokens:   300,
+		Temperature: 0.1,
+		Messages: []anthropicMessage{
+			{
+				Role:    "user",
+				Content: text,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(anthropicReq)
+	if err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/v1/messages"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-api-key", p.config.APIKey)
+	httpReq.Header.Set("anthropic-version", "2023-06-01")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var anthropicResp anthropicResponse
+	if err := json.Unmarshal(body, &anthropicResp); err != nil {
+		return EntitiesResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if anthropicResp.Error != nil {
+		return EntitiesResponse{}, fmt.Errorf("Anthropic API error: %s", anthropicResp.Error.Message)
+	}
+
+	if len(anthropicResp.Content) == 0 {
+		return EntitiesResponse{}, fmt.Errorf("no content in response")
+	}
+
+	var responseText string
+	for _, content := range anthropicResp.Content {
+		if content.Type == "text" {
+			responseText += content.Text
+		}
+	}
+
+	return ParseEntitiesResponse(responseText)
+}
+
+func (p *AnthropicProvider) ExtractEvents(ctx context.Context, text string) (EventsResponse, error) {
+	anthropicReq := anthropicRequest{
+		Model:       p.config.Model,
+		System:      EventsPrompt,
+		MaxTokens:   200,
+		Temperature: 0.1,
+		Messages: []anthropicMessage{
+			{
+				Role:    "user",
+				Content: text,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(anthropicReq)
+	if err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/v1/messages"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-api-key", p.config.APIKey)
+	httpReq.Header.Set("anthropic-version", "2023-06-01")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var anthropicResp anthropicResponse
+	if err := json.Unmarshal(body, &anthropicResp); err != nil {
+		return EventsResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if anthropicResp.Error != nil {
+		return EventsResponse{}, fmt.Errorf("Anthropic API error: %s", anthropicResp.Error.Message)
+	}
+
+	if len(anthropicResp.Content) == 0 {
+		return EventsResponse{}, fmt.Errorf("no content in response")
+	}
+
+	var responseText string
+	for _, content := range anthropicResp.Content {
+		if content.Type == "text" {
+			responseText += content.Text
+		}
+	}
+
+	return ParseEventsResponse(responseText)
+}
+
 func init() {
 	Register("anthropic", NewAnthropicProvider)
 }

@@ -53,6 +53,8 @@ var (
 	factuality       bool
 	impact           bool
 	sensationalism   bool
+	entities         bool
+	events           bool
 )
 
 func Execute(ctx context.Context) error {
@@ -101,6 +103,8 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().BoolVar(&factuality, "factuality", false, "Check factuality (confirmed, rumors, forecasts, unsourced)")
 	rootCmd.Flags().BoolVar(&impact, "impact", false, "Analyze who is affected (individuals, business, government, investors, consumers)")
 	rootCmd.Flags().BoolVar(&sensationalism, "sensationalism", false, "Analyze sensationalism level (neutral, emotional, clickbait, manipulative)")
+	rootCmd.Flags().BoolVar(&entities, "entities", false, "Extract named entities (persons, organizations, locations, dates, amounts)")
+	rootCmd.Flags().BoolVar(&events, "events", false, "Extract key events from text")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 
 	rootCmd.Version = Version
@@ -339,6 +343,50 @@ func runTranslate(ctx context.Context) error {
 		}
 	}
 
+	if cfg.Settings.Entities {
+		if verbose {
+			logInfo("Extracting entities...")
+		}
+		entitiesResult, err := t.ExtractEntities(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Entities extraction failed: %v", err)
+			}
+		} else {
+			if len(entitiesResult.Persons) > 0 {
+				fmUpdates["persons"] = entitiesResult.Persons
+			}
+			if len(entitiesResult.Organizations) > 0 {
+				fmUpdates["organizations"] = entitiesResult.Organizations
+			}
+			if len(entitiesResult.Locations) > 0 {
+				fmUpdates["locations"] = entitiesResult.Locations
+			}
+			if len(entitiesResult.Dates) > 0 {
+				fmUpdates["dates"] = entitiesResult.Dates
+			}
+			if len(entitiesResult.Amounts) > 0 {
+				fmUpdates["amounts"] = entitiesResult.Amounts
+			}
+		}
+	}
+
+	if cfg.Settings.Events {
+		if verbose {
+			logInfo("Extracting events...")
+		}
+		eventsResult, err := t.ExtractEvents(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Events extraction failed: %v", err)
+			}
+		} else {
+			if len(eventsResult.Events) > 0 {
+				fmUpdates["events"] = eventsResult.Events
+			}
+		}
+	}
+
 	// Update frontmatter with analysis results if any
 	if len(fmUpdates) > 0 {
 		frontmatter = updateFrontmatter(frontmatter, fmUpdates)
@@ -432,6 +480,14 @@ func applyCLIOverrides(cfg *config.Config) {
 
 	if sensationalism {
 		cfg.Settings.Sensationalism = sensationalism
+	}
+
+	if entities {
+		cfg.Settings.Entities = entities
+	}
+
+	if events {
+		cfg.Settings.Events = events
 	}
 
 	providerCfg, ok := cfg.Providers[cfg.DefaultProvider]
@@ -850,6 +906,44 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 			fmUpdates["sensationalism_confidence"] = sensResult.Confidence
 			if len(sensResult.Markers) > 0 {
 				fmUpdates["sensationalism_markers"] = sensResult.Markers
+			}
+		}
+	}
+
+	if cfg.Settings.Entities {
+		entitiesResult, err := t.ExtractEntities(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Entities extraction failed: %v", err)
+			}
+		} else {
+			if len(entitiesResult.Persons) > 0 {
+				fmUpdates["persons"] = entitiesResult.Persons
+			}
+			if len(entitiesResult.Organizations) > 0 {
+				fmUpdates["organizations"] = entitiesResult.Organizations
+			}
+			if len(entitiesResult.Locations) > 0 {
+				fmUpdates["locations"] = entitiesResult.Locations
+			}
+			if len(entitiesResult.Dates) > 0 {
+				fmUpdates["dates"] = entitiesResult.Dates
+			}
+			if len(entitiesResult.Amounts) > 0 {
+				fmUpdates["amounts"] = entitiesResult.Amounts
+			}
+		}
+	}
+
+	if cfg.Settings.Events {
+		eventsResult, err := t.ExtractEvents(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Events extraction failed: %v", err)
+			}
+		} else {
+			if len(eventsResult.Events) > 0 {
+				fmUpdates["events"] = eventsResult.Events
 			}
 		}
 	}

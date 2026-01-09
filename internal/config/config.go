@@ -32,6 +32,8 @@ type Settings struct {
 	Factuality      bool    `yaml:"factuality"`
 	Impact          bool    `yaml:"impact"`
 	Sensationalism  bool    `yaml:"sensationalism"`
+	Entities        bool    `yaml:"entities"`
+	Events          bool    `yaml:"events"`
 }
 
 type StrongValidation struct {
@@ -89,6 +91,8 @@ func DefaultConfig() *Config {
 			Factuality:     false,
 			Impact:         false,
 			Sensationalism: false,
+			Entities:       false,
+			Events:         false,
 		},
 		StrongValidation: StrongValidation{
 			Enabled:    false,

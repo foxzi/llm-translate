@@ -13,7 +13,7 @@ A powerful command-line tool for translating text between languages using variou
 - **Proxy Support**: HTTP, HTTPS, and SOCKS5 proxy configuration
 - **Retry Logic**: Automatic retries with exponential backoff
 - **Configurable**: YAML configuration files with environment variable support
-- **Text Analysis**: Sentiment analysis, emotion detection, topic classification, and tag extraction
+- **Text Analysis**: Sentiment analysis, emotion detection, topic classification, tag extraction, named entity recognition (NER), and event extraction
 
 ## Installation
 
@@ -164,6 +164,8 @@ proxy:
 | `--factuality` | | Check factuality (confirmed, rumors, forecasts, unsourced) | false |
 | `--impact` | | Analyze who is affected (individuals, business, government, etc.) | false |
 | `--sensationalism` | | Analyze sensationalism level (neutral, emotional, clickbait, manipulative) | false |
+| `--entities` | | Extract named entities (persons, organizations, locations, dates, amounts) | false |
+| `--events` | | Extract key events from text | false |
 | `--verbose` | | Verbose output | false |
 | `--version` | `-v` | Show version | - |
 | `--quiet` | `-q` | Quiet mode | false |
@@ -259,9 +261,15 @@ llm-translate -i article.txt -o article_ru.txt -t ru --impact
 # Analyze sensationalism level
 llm-translate -i article.txt -o article_ru.txt -t ru --sensationalism
 
+# Extract named entities (persons, organizations, locations, dates, amounts)
+llm-translate -i article.txt -o article_ru.txt -t ru --entities
+
+# Extract key events from text
+llm-translate -i article.txt -o article_ru.txt -t ru --events
+
 # Full analysis - combine all
 llm-translate -i article.txt -o article_ru.txt -t ru \
-  --sentiment --tags 5 --classify --emotions --factuality --impact --sensationalism
+  --sentiment --tags 5 --classify --emotions --factuality --impact --sensationalism --entities --events
 ```
 
 Output frontmatter example:
@@ -300,6 +308,25 @@ sensationalism: neutral
 sensationalism_confidence: 0.9
 sensationalism_markers:
   - factual_language
+persons:
+  - Tim Cook
+  - Sundar Pichai
+organizations:
+  - Apple
+  - Google
+  - European Commission
+locations:
+  - California
+  - Brussels
+dates:
+  - January 2024
+  - Q2 2025
+amounts:
+  - $500 million
+  - 15%
+events:
+  - Apple announced new iPhone regulations compliance
+  - European Commission approved merger deal
 ---
 ```
 
@@ -326,6 +353,16 @@ sensationalism_markers:
 - **clickbait**: exaggerated headlines, curiosity gaps, misleading hooks
 - **manipulative**: deliberate distortion, fear-mongering, propaganda techniques
 
+**Named entities (NER):**
+- **persons**: person names mentioned in text
+- **organizations**: companies, institutions, agencies
+- **locations**: places, cities, countries, regions
+- **dates**: dates, time references, periods
+- **amounts**: monetary values, percentages, numbers
+
+**Events extraction:**
+- Key events mentioned in the text as structured list
+
 Configuration in YAML:
 
 ```yaml
@@ -337,6 +374,8 @@ settings:
   factuality: true
   impact: true
   sensationalism: true
+  entities: true
+  events: true
 ```
 
 ### Proxy Configuration
