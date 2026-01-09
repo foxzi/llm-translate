@@ -67,23 +67,25 @@ default_provider: openai
 default_target_language: ru
 
 settings:
-  temperature: 0.3
-  max_tokens: 4096
-  timeout: 60
-  chunk_size: 3000
-  preserve_format: false
-  retry_count: 3
-  retry_delay: 1
-  # Analysis settings
-  sentiment: false
-  tags_count: 0
-  classify: false
-  emotions: false
-  factuality: false
-  impact: false
-  sensationalism: false
-  entities: false
-  events: false
+  # LLM generation settings
+  temperature: 0.3          # Creativity level (0.0-1.0, lower = more deterministic)
+  max_tokens: 4096          # Maximum tokens in LLM response
+  timeout: 60               # Request timeout in seconds
+  chunk_size: 3000          # Characters per chunk for long texts
+  preserve_format: false    # Preserve markdown/HTML formatting
+  retry_count: 3            # Number of retries on failure
+  retry_delay: 1            # Delay between retries in seconds
+
+  # Text analysis settings (results added to frontmatter)
+  sentiment: false          # Analyze sentiment (positive/negative/neutral with score)
+  tags_count: 0             # Extract N keywords/tags (0 = disabled)
+  classify: false           # Classify by topics, scope, news_type
+  emotions: false           # Detect emotions (fear, anger, hope, uncertainty, optimism, panic)
+  factuality: false         # Check factuality (confirmed, rumors, forecasts, unsourced)
+  impact: false             # Who is affected (individuals, business, government, investors, consumers)
+  sensationalism: false     # Sensationalism level (neutral, emotional, clickbait, manipulative)
+  entities: false           # Extract named entities (persons, organizations, locations, dates, amounts)
+  events: false             # Extract key events mentioned in text
 
 providers:
   openai:
