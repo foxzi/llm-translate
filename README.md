@@ -78,7 +78,7 @@ settings:
 
   # Text analysis settings (results added to frontmatter)
   sentiment: false          # Analyze sentiment (positive/negative/neutral with score)
-  tags_count: 0             # Extract N keywords/tags (0 = disabled)
+  tags_count: 5             # Extract N keywords/tags (0 = disabled)
   classify: false           # Classify by topics, scope, news_type
   emotions: false           # Detect emotions (fear, anger, hope, uncertainty, optimism, panic)
   factuality: false         # Check factuality (confirmed, rumors, forecasts, unsourced)
