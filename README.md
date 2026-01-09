@@ -13,7 +13,7 @@ A powerful command-line tool for translating text between languages using variou
 - **Proxy Support**: HTTP, HTTPS, and SOCKS5 proxy configuration
 - **Retry Logic**: Automatic retries with exponential backoff
 - **Configurable**: YAML configuration files with environment variable support
-- **Text Analysis**: Sentiment analysis and tag extraction for translated text
+- **Text Analysis**: Sentiment analysis, emotion detection, topic classification, and tag extraction
 
 ## Installation
 
@@ -159,6 +159,8 @@ proxy:
 | `--strong` | `-s` | Strong validation mode | false |
 | `--sentiment` | | Analyze sentiment of translated text | false |
 | `--tags` | | Extract N tags from text (0 to disable) | 0 |
+| `--classify` | | Classify text by topics, scope, and type | false |
+| `--emotions` | | Analyze emotions (fear, anger, hope, etc.) | false |
 | `--verbose` | | Verbose output | false |
 | `--version` | `-v` | Show version | - |
 | `--quiet` | `-q` | Quiet mode | false |
@@ -230,20 +232,58 @@ llm-translate -i document.txt -o document_ru.txt -f en -t ru --strong
 
 ### Text Analysis
 
-Analyze translated text for sentiment and extract key tags:
+Analyze translated text for sentiment, emotions, classification, and extract key tags. Results are added to frontmatter in Markdown files.
 
 ```bash
 # Analyze sentiment of translated text
 llm-translate -i article.txt -o article_ru.txt -t ru --sentiment
-# Output includes: Sentiment: positive (0.75)
 
 # Extract 5 tags from translated text
 llm-translate -i article.txt -o article_ru.txt -t ru --tags 5
-# Output includes: Tags: technology, innovation, future, ai, research
 
-# Combine both
-llm-translate -i article.txt -o article_ru.txt -t ru --sentiment --tags 5
+# Classify by topics, scope, and news type
+llm-translate -i article.txt -o article_ru.txt -t ru --classify
+
+# Analyze emotions (fear, anger, hope, uncertainty, optimism, panic)
+llm-translate -i article.txt -o article_ru.txt -t ru --emotions
+
+# Full analysis - combine all
+llm-translate -i article.txt -o article_ru.txt -t ru \
+  --sentiment --tags 5 --classify --emotions
 ```
+
+Output frontmatter example:
+
+```yaml
+---
+title: Article
+sentiment: positive
+sentiment_score: 0.75
+tags:
+  - technology
+  - innovation
+  - ai
+topics:
+  - technology
+  - economics
+scope:
+  - international
+news_type:
+  - corporate
+emotions:
+  fear: 0.2
+  hope: 0.8
+  optimism: 0.7
+---
+```
+
+**Classification categories:**
+- **Topics**: politics, economics, technology, medicine, incidents
+- **Scope**: regional, international
+- **News type**: corporate, regulatory, macro
+
+**Emotions detected:**
+- fear, anger, hope, uncertainty, optimism, panic (with intensity 0.0-1.0)
 
 Configuration in YAML:
 
@@ -251,6 +291,8 @@ Configuration in YAML:
 settings:
   sentiment: true
   tags_count: 5
+  classify: true
+  emotions: true
 ```
 
 ### Proxy Configuration
