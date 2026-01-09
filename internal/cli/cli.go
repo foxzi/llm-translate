@@ -51,6 +51,7 @@ var (
 	classify         bool
 	emotions         bool
 	factuality       bool
+	impact           bool
 )
 
 func Execute(ctx context.Context) error {
@@ -97,6 +98,7 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().BoolVar(&classify, "classify", false, "Classify text by topics, scope, and type")
 	rootCmd.Flags().BoolVar(&emotions, "emotions", false, "Analyze emotions (fear, anger, hope, uncertainty, optimism, panic)")
 	rootCmd.Flags().BoolVar(&factuality, "factuality", false, "Check factuality (confirmed, rumors, forecasts, unsourced)")
+	rootCmd.Flags().BoolVar(&impact, "impact", false, "Analyze who is affected (individuals, business, government, investors, consumers)")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 
 	rootCmd.Version = Version
@@ -301,6 +303,22 @@ func runTranslate(ctx context.Context) error {
 		}
 	}
 
+	if cfg.Settings.Impact {
+		if verbose {
+			logInfo("Analyzing impact...")
+		}
+		impactResult, err := t.AnalyzeImpact(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Impact analysis failed: %v", err)
+			}
+		} else {
+			if len(impactResult.Affected) > 0 {
+				fmUpdates["affected"] = impactResult.Affected
+			}
+		}
+	}
+
 	// Update frontmatter with analysis results if any
 	if len(fmUpdates) > 0 {
 		frontmatter = updateFrontmatter(frontmatter, fmUpdates)
@@ -386,6 +404,10 @@ func applyCLIOverrides(cfg *config.Config) {
 
 	if factuality {
 		cfg.Settings.Factuality = factuality
+	}
+
+	if impact {
+		cfg.Settings.Impact = impact
 	}
 
 	providerCfg, ok := cfg.Providers[cfg.DefaultProvider]
@@ -776,6 +798,19 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 			fmUpdates["factuality_confidence"] = factualityResult.Confidence
 			if len(factualityResult.Evidence) > 0 {
 				fmUpdates["factuality_evidence"] = factualityResult.Evidence
+			}
+		}
+	}
+
+	if cfg.Settings.Impact {
+		impactResult, err := t.AnalyzeImpact(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Impact analysis failed: %v", err)
+			}
+		} else {
+			if len(impactResult.Affected) > 0 {
+				fmUpdates["affected"] = impactResult.Affected
 			}
 		}
 	}

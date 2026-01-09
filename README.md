@@ -162,6 +162,7 @@ proxy:
 | `--classify` | | Classify text by topics, scope, and type | false |
 | `--emotions` | | Analyze emotions (fear, anger, hope, etc.) | false |
 | `--factuality` | | Check factuality (confirmed, rumors, forecasts, unsourced) | false |
+| `--impact` | | Analyze who is affected (individuals, business, government, etc.) | false |
 | `--verbose` | | Verbose output | false |
 | `--version` | `-v` | Show version | - |
 | `--quiet` | `-q` | Quiet mode | false |
@@ -233,7 +234,7 @@ llm-translate -i document.txt -o document_ru.txt -f en -t ru --strong
 
 ### Text Analysis
 
-Analyze translated text for sentiment, emotions, classification, and extract key tags. Results are added to frontmatter in Markdown files.
+Analyze translated text for sentiment, emotions, classification, impact, and extract key tags. Results are added to frontmatter in Markdown files.
 
 ```bash
 # Analyze sentiment of translated text
@@ -251,9 +252,12 @@ llm-translate -i article.txt -o article_ru.txt -t ru --emotions
 # Check factuality (confirmed data, rumors, forecasts, unsourced claims)
 llm-translate -i article.txt -o article_ru.txt -t ru --factuality
 
+# Analyze who is affected by the news
+llm-translate -i article.txt -o article_ru.txt -t ru --impact
+
 # Full analysis - combine all
 llm-translate -i article.txt -o article_ru.txt -t ru \
-  --sentiment --tags 5 --classify --emotions --factuality
+  --sentiment --tags 5 --classify --emotions --factuality --impact
 ```
 
 Output frontmatter example:
@@ -284,6 +288,10 @@ factuality_evidence:
   - official_source
   - statistics
   - quotes
+affected:
+  - business
+  - investors
+  - consumers
 ---
 ```
 
@@ -301,6 +309,9 @@ factuality_evidence:
 - **forecasts**: predictions, projections, future expectations
 - **unsourced**: claims without attribution or evidence
 
+**Impact - who is affected:**
+- individuals, business, government, investors, consumers
+
 Configuration in YAML:
 
 ```yaml
@@ -310,6 +321,7 @@ settings:
   classify: true
   emotions: true
   factuality: true
+  impact: true
 ```
 
 ### Proxy Configuration

@@ -453,6 +453,67 @@ func (p *OpenRouterProvider) AnalyzeFactuality(ctx context.Context, text string)
 	return ParseFactualityResponse(openRouterResp.Choices[0].Message.Content)
 }
 
+func (p *OpenRouterProvider) AnalyzeImpact(ctx context.Context, text string) (ImpactResponse, error) {
+	openRouterReq := openRouterRequest{
+		Model:       p.config.Model,
+		Temperature: 0.1,
+		MaxTokens:   100,
+		Stream:      false,
+		Messages: []message{
+			{
+				Role:    "system",
+				Content: ImpactPrompt,
+			},
+			{
+				Role:    "user",
+				Content: text,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(openRouterReq)
+	if err != nil {
+		return ImpactResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/chat/completions"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return ImpactResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("X-Title", "LLM Translate CLI")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return ImpactResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ImpactResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var openRouterResp openRouterResponse
+	if err := json.Unmarshal(body, &openRouterResp); err != nil {
+		return ImpactResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if openRouterResp.Error != nil {
+		return ImpactResponse{}, fmt.Errorf("OpenRouter API error: %s", openRouterResp.Error.Message)
+	}
+
+	if len(openRouterResp.Choices) == 0 {
+		return ImpactResponse{}, fmt.Errorf("no choices in response")
+	}
+
+	return ParseImpactResponse(openRouterResp.Choices[0].Message.Content)
+}
+
 func init() {
 	Register("openrouter", NewOpenRouterProvider)
 }

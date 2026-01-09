@@ -71,6 +71,19 @@ EVIDENCE: anonymous_source, speculation
 
 Text to analyze:`
 
+const ImpactPrompt = `Analyze who is affected by this news/text. Respond ONLY in this exact format:
+AFFECTED: <comma-separated list from: individuals, business, government, investors, consumers>
+
+Rules:
+- Select one or more values that apply
+- Use only the exact values listed above
+- If none apply, respond with "none"
+
+Example response:
+AFFECTED: business, investors, consumers
+
+Text to analyze:`
+
 type Provider interface {
 	Name() string
 	Translate(ctx context.Context, req TranslateRequest) (TranslateResponse, error)
@@ -79,6 +92,7 @@ type Provider interface {
 	Classify(ctx context.Context, text string) (ClassifyResponse, error)
 	AnalyzeEmotions(ctx context.Context, text string) (EmotionsResponse, error)
 	AnalyzeFactuality(ctx context.Context, text string) (FactualityResponse, error)
+	AnalyzeImpact(ctx context.Context, text string) (ImpactResponse, error)
 	ValidateConfig() error
 }
 
@@ -124,6 +138,10 @@ type FactualityResponse struct {
 	Type       string   // confirmed, rumors, forecasts, unsourced
 	Confidence float64  // 0.0-1.0
 	Evidence   []string // evidence types found
+}
+
+type ImpactResponse struct {
+	Affected []string // individuals, business, government, investors, consumers
 }
 
 type BaseProvider struct {
@@ -375,6 +393,22 @@ func ParseFactualityResponse(response string) (FactualityResponse, error) {
 	if result.Type == "" {
 		return FactualityResponse{}, fmt.Errorf("invalid factuality response format: %s", response)
 	}
+
+	return result, nil
+}
+
+func ParseImpactResponse(response string) (ImpactResponse, error) {
+	response = strings.TrimSpace(response)
+	result := ImpactResponse{}
+
+	re := regexp.MustCompile(`(?i)AFFECTED:\s*(.+)`)
+	matches := re.FindStringSubmatch(response)
+
+	if len(matches) < 2 {
+		return ImpactResponse{}, fmt.Errorf("invalid impact response format: %s", response)
+	}
+
+	result.Affected = parseCommaSeparated(matches[1])
 
 	return result, nil
 }
