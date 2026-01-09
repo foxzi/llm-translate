@@ -252,6 +252,29 @@ func (t *Translator) AnalyzeEmotions(ctx context.Context, text string) (provider
 	return t.provider.AnalyzeEmotions(ctx, text)
 }
 
+func (t *Translator) AnalyzeFactuality(ctx context.Context, text string) (provider.FactualityResponse, error) {
+	if t.provider == nil {
+		client, err := t.createHTTPClient()
+		if err != nil {
+			return provider.FactualityResponse{}, fmt.Errorf("failed to create HTTP client: %w", err)
+		}
+		t.client = client
+
+		providerCfg, ok := t.config.Providers[t.config.DefaultProvider]
+		if !ok {
+			return provider.FactualityResponse{}, fmt.Errorf("provider %s not configured", t.config.DefaultProvider)
+		}
+
+		p, err := provider.Get(t.config.DefaultProvider, providerCfg, t.client)
+		if err != nil {
+			return provider.FactualityResponse{}, fmt.Errorf("failed to initialize provider: %w", err)
+		}
+		t.provider = p
+	}
+
+	return t.provider.AnalyzeFactuality(ctx, text)
+}
+
 func (t *Translator) translateWithRetry(ctx context.Context, req provider.TranslateRequest) (provider.TranslateResponse, error) {
 	var lastErr error
 	retryCount := t.config.Settings.RetryCount

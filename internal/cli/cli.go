@@ -50,6 +50,7 @@ var (
 	tagsCount        int
 	classify         bool
 	emotions         bool
+	factuality       bool
 )
 
 func Execute(ctx context.Context) error {
@@ -95,6 +96,7 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().IntVar(&tagsCount, "tags", 0, "Extract N tags from translated text (0 to disable)")
 	rootCmd.Flags().BoolVar(&classify, "classify", false, "Classify text by topics, scope, and type")
 	rootCmd.Flags().BoolVar(&emotions, "emotions", false, "Analyze emotions (fear, anger, hope, uncertainty, optimism, panic)")
+	rootCmd.Flags().BoolVar(&factuality, "factuality", false, "Check factuality (confirmed, rumors, forecasts, unsourced)")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 
 	rootCmd.Version = Version
@@ -281,6 +283,24 @@ func runTranslate(ctx context.Context) error {
 		}
 	}
 
+	if cfg.Settings.Factuality {
+		if verbose {
+			logInfo("Analyzing factuality...")
+		}
+		factualityResult, err := t.AnalyzeFactuality(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Factuality analysis failed: %v", err)
+			}
+		} else {
+			fmUpdates["factuality"] = factualityResult.Type
+			fmUpdates["factuality_confidence"] = factualityResult.Confidence
+			if len(factualityResult.Evidence) > 0 {
+				fmUpdates["factuality_evidence"] = factualityResult.Evidence
+			}
+		}
+	}
+
 	// Update frontmatter with analysis results if any
 	if len(fmUpdates) > 0 {
 		frontmatter = updateFrontmatter(frontmatter, fmUpdates)
@@ -362,6 +382,10 @@ func applyCLIOverrides(cfg *config.Config) {
 
 	if emotions {
 		cfg.Settings.Emotions = emotions
+	}
+
+	if factuality {
+		cfg.Settings.Factuality = factuality
 	}
 
 	providerCfg, ok := cfg.Providers[cfg.DefaultProvider]
@@ -737,6 +761,21 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 		} else {
 			if len(emotionsResult.Emotions) > 0 {
 				fmUpdates["emotions"] = emotionsResult.Emotions
+			}
+		}
+	}
+
+	if cfg.Settings.Factuality {
+		factualityResult, err := t.AnalyzeFactuality(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Factuality analysis failed: %v", err)
+			}
+		} else {
+			fmUpdates["factuality"] = factualityResult.Type
+			fmUpdates["factuality_confidence"] = factualityResult.Confidence
+			if len(factualityResult.Evidence) > 0 {
+				fmUpdates["factuality_evidence"] = factualityResult.Evidence
 			}
 		}
 	}

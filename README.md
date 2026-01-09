@@ -161,6 +161,7 @@ proxy:
 | `--tags` | | Extract N tags from text (0 to disable) | 0 |
 | `--classify` | | Classify text by topics, scope, and type | false |
 | `--emotions` | | Analyze emotions (fear, anger, hope, etc.) | false |
+| `--factuality` | | Check factuality (confirmed, rumors, forecasts, unsourced) | false |
 | `--verbose` | | Verbose output | false |
 | `--version` | `-v` | Show version | - |
 | `--quiet` | `-q` | Quiet mode | false |
@@ -247,9 +248,12 @@ llm-translate -i article.txt -o article_ru.txt -t ru --classify
 # Analyze emotions (fear, anger, hope, uncertainty, optimism, panic)
 llm-translate -i article.txt -o article_ru.txt -t ru --emotions
 
+# Check factuality (confirmed data, rumors, forecasts, unsourced claims)
+llm-translate -i article.txt -o article_ru.txt -t ru --factuality
+
 # Full analysis - combine all
 llm-translate -i article.txt -o article_ru.txt -t ru \
-  --sentiment --tags 5 --classify --emotions
+  --sentiment --tags 5 --classify --emotions --factuality
 ```
 
 Output frontmatter example:
@@ -274,6 +278,12 @@ emotions:
   fear: 0.2
   hope: 0.8
   optimism: 0.7
+factuality: confirmed
+factuality_confidence: 0.85
+factuality_evidence:
+  - official_source
+  - statistics
+  - quotes
 ---
 ```
 
@@ -285,6 +295,12 @@ emotions:
 **Emotions detected:**
 - fear, anger, hope, uncertainty, optimism, panic (with intensity 0.0-1.0)
 
+**Factuality types:**
+- **confirmed**: verified facts with clear sources or official data
+- **rumors**: unverified information, hearsay, "sources say"
+- **forecasts**: predictions, projections, future expectations
+- **unsourced**: claims without attribution or evidence
+
 Configuration in YAML:
 
 ```yaml
@@ -293,6 +309,7 @@ settings:
   tags_count: 5
   classify: true
   emotions: true
+  factuality: true
 ```
 
 ### Proxy Configuration

@@ -52,6 +52,25 @@ EMOTIONS: fear:0.8, uncertainty:0.6, panic:0.3
 
 Text to analyze:`
 
+const FactualityPrompt = `Analyze the factuality and speculativeness of the following text. Respond ONLY in this exact format:
+FACTUALITY: <type> (<confidence 0.0-1.0>)
+EVIDENCE: <comma-separated list of evidence types found>
+
+Types (choose one):
+- confirmed: verified facts with clear sources or official data
+- rumors: unverified information, hearsay, "sources say"
+- forecasts: predictions, projections, future expectations
+- unsourced: claims without attribution or evidence
+
+Evidence types to detect:
+- official_source, statistics, quotes, documents, expert_opinion, anonymous_source, speculation, prediction
+
+Example response:
+FACTUALITY: rumors (0.7)
+EVIDENCE: anonymous_source, speculation
+
+Text to analyze:`
+
 type Provider interface {
 	Name() string
 	Translate(ctx context.Context, req TranslateRequest) (TranslateResponse, error)
@@ -59,6 +78,7 @@ type Provider interface {
 	ExtractTags(ctx context.Context, text string, count int) (TagsResponse, error)
 	Classify(ctx context.Context, text string) (ClassifyResponse, error)
 	AnalyzeEmotions(ctx context.Context, text string) (EmotionsResponse, error)
+	AnalyzeFactuality(ctx context.Context, text string) (FactualityResponse, error)
 	ValidateConfig() error
 }
 
@@ -98,6 +118,12 @@ type ClassifyResponse struct {
 
 type EmotionsResponse struct {
 	Emotions map[string]float64 // emotion -> intensity (0.0-1.0)
+}
+
+type FactualityResponse struct {
+	Type       string   // confirmed, rumors, forecasts, unsourced
+	Confidence float64  // 0.0-1.0
+	Evidence   []string // evidence types found
 }
 
 type BaseProvider struct {
@@ -322,6 +348,32 @@ func ParseEmotionsResponse(response string) (EmotionsResponse, error) {
 
 	if len(result.Emotions) == 0 {
 		return EmotionsResponse{}, fmt.Errorf("no emotions found in response")
+	}
+
+	return result, nil
+}
+
+func ParseFactualityResponse(response string) (FactualityResponse, error) {
+	response = strings.TrimSpace(response)
+	result := FactualityResponse{}
+
+	// Parse FACTUALITY line
+	factRe := regexp.MustCompile(`(?i)FACTUALITY:\s*(\w+)\s*\(([0-9.]+)\)`)
+	if matches := factRe.FindStringSubmatch(response); len(matches) >= 3 {
+		result.Type = strings.ToLower(matches[1])
+		if score, err := strconv.ParseFloat(matches[2], 64); err == nil {
+			result.Confidence = score
+		}
+	}
+
+	// Parse EVIDENCE line
+	evidenceRe := regexp.MustCompile(`(?i)EVIDENCE:\s*(.+)`)
+	if matches := evidenceRe.FindStringSubmatch(response); len(matches) >= 2 {
+		result.Evidence = parseCommaSeparated(matches[1])
+	}
+
+	if result.Type == "" {
+		return FactualityResponse{}, fmt.Errorf("invalid factuality response format: %s", response)
 	}
 
 	return result, nil

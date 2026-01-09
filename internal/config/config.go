@@ -29,6 +29,7 @@ type Settings struct {
 	TagsCount       int     `yaml:"tags_count"`
 	Classify        bool    `yaml:"classify"`
 	Emotions        bool    `yaml:"emotions"`
+	Factuality      bool    `yaml:"factuality"`
 }
 
 type StrongValidation struct {
@@ -83,6 +84,7 @@ func DefaultConfig() *Config {
 			TagsCount:      0,
 			Classify:       false,
 			Emotions:       false,
+			Factuality:     false,
 		},
 		StrongValidation: StrongValidation{
 			Enabled:    false,
