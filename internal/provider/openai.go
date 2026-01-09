@@ -506,6 +506,64 @@ func (p *OpenAIProvider) AnalyzeImpact(ctx context.Context, text string) (Impact
 	return ParseImpactResponse(openAIResp.Choices[0].Message.Content)
 }
 
+func (p *OpenAIProvider) AnalyzeSensationalism(ctx context.Context, text string) (SensationalismResponse, error) {
+	openAIReq := openAIRequest{
+		Model:       p.config.Model,
+		Temperature: 0.1,
+		MaxTokens:   150,
+		Messages: []message{
+			{
+				Role:    "system",
+				Content: SensationalismPrompt,
+			},
+			{
+				Role:    "user",
+				Content: text,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(openAIReq)
+	if err != nil {
+		return SensationalismResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/chat/completions"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return SensationalismResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return SensationalismResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return SensationalismResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var openAIResp openAIResponse
+	if err := json.Unmarshal(body, &openAIResp); err != nil {
+		return SensationalismResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if openAIResp.Error != nil {
+		return SensationalismResponse{}, fmt.Errorf("OpenAI API error: %s", openAIResp.Error.Message)
+	}
+
+	if len(openAIResp.Choices) == 0 {
+		return SensationalismResponse{}, fmt.Errorf("no choices in response")
+	}
+
+	return ParseSensationalismResponse(openAIResp.Choices[0].Message.Content)
+}
+
 func init() {
 	Register("openai", NewOpenAIProvider)
 }

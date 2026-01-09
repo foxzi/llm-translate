@@ -52,6 +52,7 @@ var (
 	emotions         bool
 	factuality       bool
 	impact           bool
+	sensationalism   bool
 )
 
 func Execute(ctx context.Context) error {
@@ -99,6 +100,7 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().BoolVar(&emotions, "emotions", false, "Analyze emotions (fear, anger, hope, uncertainty, optimism, panic)")
 	rootCmd.Flags().BoolVar(&factuality, "factuality", false, "Check factuality (confirmed, rumors, forecasts, unsourced)")
 	rootCmd.Flags().BoolVar(&impact, "impact", false, "Analyze who is affected (individuals, business, government, investors, consumers)")
+	rootCmd.Flags().BoolVar(&sensationalism, "sensationalism", false, "Analyze sensationalism level (neutral, emotional, clickbait, manipulative)")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 
 	rootCmd.Version = Version
@@ -319,6 +321,24 @@ func runTranslate(ctx context.Context) error {
 		}
 	}
 
+	if cfg.Settings.Sensationalism {
+		if verbose {
+			logInfo("Analyzing sensationalism...")
+		}
+		sensResult, err := t.AnalyzeSensationalism(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Sensationalism analysis failed: %v", err)
+			}
+		} else {
+			fmUpdates["sensationalism"] = sensResult.Type
+			fmUpdates["sensationalism_confidence"] = sensResult.Confidence
+			if len(sensResult.Markers) > 0 {
+				fmUpdates["sensationalism_markers"] = sensResult.Markers
+			}
+		}
+	}
+
 	// Update frontmatter with analysis results if any
 	if len(fmUpdates) > 0 {
 		frontmatter = updateFrontmatter(frontmatter, fmUpdates)
@@ -408,6 +428,10 @@ func applyCLIOverrides(cfg *config.Config) {
 
 	if impact {
 		cfg.Settings.Impact = impact
+	}
+
+	if sensationalism {
+		cfg.Settings.Sensationalism = sensationalism
 	}
 
 	providerCfg, ok := cfg.Providers[cfg.DefaultProvider]
@@ -811,6 +835,21 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 		} else {
 			if len(impactResult.Affected) > 0 {
 				fmUpdates["affected"] = impactResult.Affected
+			}
+		}
+	}
+
+	if cfg.Settings.Sensationalism {
+		sensResult, err := t.AnalyzeSensationalism(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Sensationalism analysis failed: %v", err)
+			}
+		} else {
+			fmUpdates["sensationalism"] = sensResult.Type
+			fmUpdates["sensationalism_confidence"] = sensResult.Confidence
+			if len(sensResult.Markers) > 0 {
+				fmUpdates["sensationalism_markers"] = sensResult.Markers
 			}
 		}
 	}

@@ -603,6 +603,77 @@ func (p *GoogleProvider) AnalyzeImpact(ctx context.Context, text string) (Impact
 	return ParseImpactResponse(responseText)
 }
 
+func (p *GoogleProvider) AnalyzeSensationalism(ctx context.Context, text string) (SensationalismResponse, error) {
+	googleReq := googleRequest{
+		Contents: []googleContent{
+			{
+				Parts: []googlePart{
+					{Text: text},
+				},
+				Role: "user",
+			},
+		},
+		GenerationConfig: googleGenConfig{
+			Temperature:     0.1,
+			MaxOutputTokens: 150,
+		},
+		SystemInstruction: &googleContent{
+			Parts: []googlePart{
+				{Text: SensationalismPrompt},
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(googleReq)
+	if err != nil {
+		return SensationalismResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+		strings.TrimRight(p.config.BaseURL, "/"),
+		p.config.Model,
+		p.config.APIKey,
+	)
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return SensationalismResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return SensationalismResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return SensationalismResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var googleResp googleResponse
+	if err := json.Unmarshal(body, &googleResp); err != nil {
+		return SensationalismResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if googleResp.Error != nil {
+		return SensationalismResponse{}, fmt.Errorf("Google API error: %s", googleResp.Error.Message)
+	}
+
+	if len(googleResp.Candidates) == 0 {
+		return SensationalismResponse{}, fmt.Errorf("no candidates in response")
+	}
+
+	var responseText string
+	for _, part := range googleResp.Candidates[0].Content.Parts {
+		responseText += part.Text
+	}
+
+	return ParseSensationalismResponse(responseText)
+}
+
 func init() {
 	Register("google", NewGoogleProvider)
 }

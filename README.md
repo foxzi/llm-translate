@@ -163,6 +163,7 @@ proxy:
 | `--emotions` | | Analyze emotions (fear, anger, hope, etc.) | false |
 | `--factuality` | | Check factuality (confirmed, rumors, forecasts, unsourced) | false |
 | `--impact` | | Analyze who is affected (individuals, business, government, etc.) | false |
+| `--sensationalism` | | Analyze sensationalism level (neutral, emotional, clickbait, manipulative) | false |
 | `--verbose` | | Verbose output | false |
 | `--version` | `-v` | Show version | - |
 | `--quiet` | `-q` | Quiet mode | false |
@@ -255,9 +256,12 @@ llm-translate -i article.txt -o article_ru.txt -t ru --factuality
 # Analyze who is affected by the news
 llm-translate -i article.txt -o article_ru.txt -t ru --impact
 
+# Analyze sensationalism level
+llm-translate -i article.txt -o article_ru.txt -t ru --sensationalism
+
 # Full analysis - combine all
 llm-translate -i article.txt -o article_ru.txt -t ru \
-  --sentiment --tags 5 --classify --emotions --factuality --impact
+  --sentiment --tags 5 --classify --emotions --factuality --impact --sensationalism
 ```
 
 Output frontmatter example:
@@ -292,6 +296,10 @@ affected:
   - business
   - investors
   - consumers
+sensationalism: neutral
+sensationalism_confidence: 0.9
+sensationalism_markers:
+  - factual_language
 ---
 ```
 
@@ -312,6 +320,12 @@ affected:
 **Impact - who is affected:**
 - individuals, business, government, investors, consumers
 
+**Sensationalism levels:**
+- **neutral**: factual, balanced reporting without emotional language
+- **emotional**: emotionally charged language, dramatic descriptions
+- **clickbait**: exaggerated headlines, curiosity gaps, misleading hooks
+- **manipulative**: deliberate distortion, fear-mongering, propaganda techniques
+
 Configuration in YAML:
 
 ```yaml
@@ -322,6 +336,7 @@ settings:
   emotions: true
   factuality: true
   impact: true
+  sensationalism: true
 ```
 
 ### Proxy Configuration

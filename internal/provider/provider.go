@@ -84,6 +84,25 @@ AFFECTED: business, investors, consumers
 
 Text to analyze:`
 
+const SensationalismPrompt = `Analyze the sensationalism level of the following text. Respond ONLY in this exact format:
+SENSATIONALISM: <type> (<confidence 0.0-1.0>)
+MARKERS: <comma-separated list of detected markers>
+
+Types (choose one):
+- neutral: factual, balanced reporting without emotional language
+- emotional: emotionally charged language, dramatic descriptions
+- clickbait: exaggerated headlines, curiosity gaps, misleading hooks
+- manipulative: deliberate distortion, fear-mongering, propaganda techniques
+
+Markers to detect:
+- exaggeration, superlatives, fear_appeal, urgency, misleading_headline, emotional_language, unverified_claims, sensational_words
+
+Example response:
+SENSATIONALISM: clickbait (0.8)
+MARKERS: exaggeration, misleading_headline, urgency
+
+Text to analyze:`
+
 type Provider interface {
 	Name() string
 	Translate(ctx context.Context, req TranslateRequest) (TranslateResponse, error)
@@ -93,6 +112,7 @@ type Provider interface {
 	AnalyzeEmotions(ctx context.Context, text string) (EmotionsResponse, error)
 	AnalyzeFactuality(ctx context.Context, text string) (FactualityResponse, error)
 	AnalyzeImpact(ctx context.Context, text string) (ImpactResponse, error)
+	AnalyzeSensationalism(ctx context.Context, text string) (SensationalismResponse, error)
 	ValidateConfig() error
 }
 
@@ -142,6 +162,12 @@ type FactualityResponse struct {
 
 type ImpactResponse struct {
 	Affected []string // individuals, business, government, investors, consumers
+}
+
+type SensationalismResponse struct {
+	Type       string   // neutral, emotional, clickbait, manipulative
+	Confidence float64  // 0.0-1.0
+	Markers    []string // detected sensationalism markers
 }
 
 type BaseProvider struct {
@@ -409,6 +435,32 @@ func ParseImpactResponse(response string) (ImpactResponse, error) {
 	}
 
 	result.Affected = parseCommaSeparated(matches[1])
+
+	return result, nil
+}
+
+func ParseSensationalismResponse(response string) (SensationalismResponse, error) {
+	response = strings.TrimSpace(response)
+	result := SensationalismResponse{}
+
+	// Parse SENSATIONALISM line
+	sensRe := regexp.MustCompile(`(?i)SENSATIONALISM:\s*(\w+)\s*\(([0-9.]+)\)`)
+	if matches := sensRe.FindStringSubmatch(response); len(matches) >= 3 {
+		result.Type = strings.ToLower(matches[1])
+		if score, err := strconv.ParseFloat(matches[2], 64); err == nil {
+			result.Confidence = score
+		}
+	}
+
+	// Parse MARKERS line
+	markersRe := regexp.MustCompile(`(?i)MARKERS:\s*(.+)`)
+	if matches := markersRe.FindStringSubmatch(response); len(matches) >= 2 {
+		result.Markers = parseCommaSeparated(matches[1])
+	}
+
+	if result.Type == "" {
+		return SensationalismResponse{}, fmt.Errorf("invalid sensationalism response format: %s", response)
+	}
 
 	return result, nil
 }
