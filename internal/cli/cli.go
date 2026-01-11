@@ -55,6 +55,7 @@ var (
 	sensationalism   bool
 	entities         bool
 	events           bool
+	usefulness       bool
 )
 
 func Execute(ctx context.Context) error {
@@ -105,6 +106,7 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().BoolVar(&sensationalism, "sensationalism", false, "Analyze sensationalism level (neutral, emotional, clickbait, manipulative)")
 	rootCmd.Flags().BoolVar(&entities, "entities", false, "Extract named entities (persons, organizations, locations, dates, amounts)")
 	rootCmd.Flags().BoolVar(&events, "events", false, "Extract key events from text")
+	rootCmd.Flags().BoolVar(&usefulness, "usefulness", false, "Analyze content usefulness (detect useless/spam content)")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 
 	rootCmd.Version = Version
@@ -387,6 +389,33 @@ func runTranslate(ctx context.Context) error {
 		}
 	}
 
+	if cfg.Settings.Usefulness {
+		if verbose {
+			logInfo("Analyzing usefulness...")
+		}
+		usefulnessResult, err := t.AnalyzeUsefulness(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Usefulness analysis failed: %v", err)
+			}
+		} else {
+			if !usefulnessResult.IsUseful {
+				// Add tag for useless content
+				existingTags, _ := fmUpdates["tags"].([]string)
+				if existingTags == nil {
+					existingTags = []string{}
+				}
+				existingTags = append(existingTags, "бесполезный материал")
+				fmUpdates["tags"] = existingTags
+				fmUpdates["useless_content"] = true
+				fmUpdates["useless_confidence"] = usefulnessResult.Confidence
+				if len(usefulnessResult.Reasons) > 0 {
+					fmUpdates["useless_reasons"] = usefulnessResult.Reasons
+				}
+			}
+		}
+	}
+
 	// Update frontmatter with analysis results if any
 	if len(fmUpdates) > 0 {
 		frontmatter = updateFrontmatter(frontmatter, fmUpdates)
@@ -488,6 +517,10 @@ func applyCLIOverrides(cfg *config.Config) {
 
 	if events {
 		cfg.Settings.Events = events
+	}
+
+	if usefulness {
+		cfg.Settings.Usefulness = usefulness
 	}
 
 	providerCfg, ok := cfg.Providers[cfg.DefaultProvider]
@@ -944,6 +977,29 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 		} else {
 			if len(eventsResult.Events) > 0 {
 				fmUpdates["events"] = eventsResult.Events
+			}
+		}
+	}
+
+	if cfg.Settings.Usefulness {
+		usefulnessResult, err := t.AnalyzeUsefulness(ctx, result.Text)
+		if err != nil {
+			if verbose {
+				logWarn("Usefulness analysis failed: %v", err)
+			}
+		} else {
+			if !usefulnessResult.IsUseful {
+				existingTags, _ := fmUpdates["tags"].([]string)
+				if existingTags == nil {
+					existingTags = []string{}
+				}
+				existingTags = append(existingTags, "бесполезный материал")
+				fmUpdates["tags"] = existingTags
+				fmUpdates["useless_content"] = true
+				fmUpdates["useless_confidence"] = usefulnessResult.Confidence
+				if len(usefulnessResult.Reasons) > 0 {
+					fmUpdates["useless_reasons"] = usefulnessResult.Reasons
+				}
 			}
 		}
 	}

@@ -367,6 +367,29 @@ func (t *Translator) ExtractEvents(ctx context.Context, text string) (provider.E
 	return t.provider.ExtractEvents(ctx, text)
 }
 
+func (t *Translator) AnalyzeUsefulness(ctx context.Context, text string) (provider.UsefulnessResponse, error) {
+	if t.provider == nil {
+		client, err := t.createHTTPClient()
+		if err != nil {
+			return provider.UsefulnessResponse{}, fmt.Errorf("failed to create HTTP client: %w", err)
+		}
+		t.client = client
+
+		providerCfg, ok := t.config.Providers[t.config.DefaultProvider]
+		if !ok {
+			return provider.UsefulnessResponse{}, fmt.Errorf("provider %s not configured", t.config.DefaultProvider)
+		}
+
+		p, err := provider.Get(t.config.DefaultProvider, providerCfg, t.client)
+		if err != nil {
+			return provider.UsefulnessResponse{}, fmt.Errorf("failed to initialize provider: %w", err)
+		}
+		t.provider = p
+	}
+
+	return t.provider.AnalyzeUsefulness(ctx, text)
+}
+
 func (t *Translator) translateWithRetry(ctx context.Context, req provider.TranslateRequest) (provider.TranslateResponse, error) {
 	var lastErr error
 	retryCount := t.config.Settings.RetryCount

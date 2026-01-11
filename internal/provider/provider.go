@@ -139,6 +139,38 @@ MARKERS: exaggeration, misleading_headline, urgency
 
 Text to analyze:`
 
+const UsefulnessPrompt = `Analyze if the following text contains useful, substantive content for readers. Respond ONLY in this exact format:
+USEFULNESS: <useful|useless> (<confidence 0.0-1.0>)
+REASONS: <comma-separated list of reasons>
+
+Criteria for USELESS content:
+- Advertising or promotional material without news value
+- Sponsored content disguised as news
+- Empty announcements without details
+- Repetitive content with no new information
+- Clickbait with no substance
+- Auto-generated content with no value
+- Content that is just a list of links
+- Content too short to be informative (less than 2-3 sentences of actual content)
+- Press releases with no editorial value
+- Content that only announces future events without details
+
+Criteria for USEFUL content:
+- Contains factual information or analysis
+- Provides new insights or perspectives
+- Includes verifiable data or statistics
+- Has educational or informational value
+- Reports on actual events with details
+
+Example responses:
+USEFULNESS: useless (0.9)
+REASONS: advertising, promotional_content, no_news_value
+
+USEFULNESS: useful (0.8)
+REASONS: factual_information, contains_analysis, new_insights
+
+Text to analyze:`
+
 type Provider interface {
 	Name() string
 	Translate(ctx context.Context, req TranslateRequest) (TranslateResponse, error)
@@ -149,6 +181,7 @@ type Provider interface {
 	AnalyzeFactuality(ctx context.Context, text string) (FactualityResponse, error)
 	AnalyzeImpact(ctx context.Context, text string) (ImpactResponse, error)
 	AnalyzeSensationalism(ctx context.Context, text string) (SensationalismResponse, error)
+	AnalyzeUsefulness(ctx context.Context, text string) (UsefulnessResponse, error)
 	ExtractEntities(ctx context.Context, text string) (EntitiesResponse, error)
 	ExtractEvents(ctx context.Context, text string) (EventsResponse, error)
 	ValidateConfig() error
@@ -218,6 +251,12 @@ type EntitiesResponse struct {
 
 type EventsResponse struct {
 	Events []string // key events mentioned
+}
+
+type UsefulnessResponse struct {
+	IsUseful   bool     // true if useful, false if useless
+	Confidence float64  // 0.0-1.0
+	Reasons    []string // reasons for the decision
 }
 
 type BaseProvider struct {
@@ -570,6 +609,30 @@ func ParseEventsResponse(response string) (EventsResponse, error) {
 				}
 			}
 		}
+	}
+
+	return result, nil
+}
+
+func ParseUsefulnessResponse(response string) (UsefulnessResponse, error) {
+	response = strings.TrimSpace(response)
+	result := UsefulnessResponse{}
+
+	// Parse USEFULNESS line
+	usefulRe := regexp.MustCompile(`(?i)USEFULNESS:\s*(useful|useless)\s*\(([0-9.]+)\)`)
+	if matches := usefulRe.FindStringSubmatch(response); len(matches) >= 3 {
+		result.IsUseful = strings.ToLower(matches[1]) == "useful"
+		if score, err := strconv.ParseFloat(matches[2], 64); err == nil {
+			result.Confidence = score
+		}
+	} else {
+		return UsefulnessResponse{}, fmt.Errorf("invalid usefulness response format: %s", response)
+	}
+
+	// Parse REASONS line
+	reasonsRe := regexp.MustCompile(`(?i)REASONS:\s*(.+)`)
+	if matches := reasonsRe.FindStringSubmatch(response); len(matches) >= 2 {
+		result.Reasons = parseCommaSeparated(matches[1])
 	}
 
 	return result, nil
