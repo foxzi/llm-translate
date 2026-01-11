@@ -399,6 +399,11 @@ func runTranslate(ctx context.Context) error {
 				logWarn("Usefulness analysis failed: %v", err)
 			}
 		} else {
+			fmUpdates["useful_content"] = usefulnessResult.IsUseful
+			fmUpdates["useful_confidence"] = usefulnessResult.Confidence
+			if len(usefulnessResult.Reasons) > 0 {
+				fmUpdates["useful_reasons"] = usefulnessResult.Reasons
+			}
 			if !usefulnessResult.IsUseful {
 				// Add tag for useless content
 				existingTags, _ := fmUpdates["tags"].([]string)
@@ -407,11 +412,6 @@ func runTranslate(ctx context.Context) error {
 				}
 				existingTags = append(existingTags, "бесполезный материал")
 				fmUpdates["tags"] = existingTags
-				fmUpdates["useless_content"] = true
-				fmUpdates["useless_confidence"] = usefulnessResult.Confidence
-				if len(usefulnessResult.Reasons) > 0 {
-					fmUpdates["useless_reasons"] = usefulnessResult.Reasons
-				}
 			}
 		}
 	}
@@ -988,6 +988,11 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 				logWarn("Usefulness analysis failed: %v", err)
 			}
 		} else {
+			fmUpdates["useful_content"] = usefulnessResult.IsUseful
+			fmUpdates["useful_confidence"] = usefulnessResult.Confidence
+			if len(usefulnessResult.Reasons) > 0 {
+				fmUpdates["useful_reasons"] = usefulnessResult.Reasons
+			}
 			if !usefulnessResult.IsUseful {
 				existingTags, _ := fmUpdates["tags"].([]string)
 				if existingTags == nil {
@@ -995,11 +1000,6 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 				}
 				existingTags = append(existingTags, "бесполезный материал")
 				fmUpdates["tags"] = existingTags
-				fmUpdates["useless_content"] = true
-				fmUpdates["useless_confidence"] = usefulnessResult.Confidence
-				if len(usefulnessResult.Reasons) > 0 {
-					fmUpdates["useless_reasons"] = usefulnessResult.Reasons
-				}
 			}
 		}
 	}
