@@ -1,5 +1,5 @@
 bin/
-llm-translateq
+llm-translate
 config.yaml
 *.exe
 *.exe~
