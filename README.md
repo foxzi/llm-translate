@@ -4,7 +4,7 @@ A powerful command-line tool for translating text between languages using variou
 
 ## Features
 
-- **Multiple LLM Providers**: Support for OpenAI, Anthropic, Google, Ollama, and OpenRouter
+- **Multiple LLM Providers**: Support for OpenAI, Anthropic, Google, Ollama, OpenRouter, and CLI-based providers (Claude Code, Codex)
 - **Flexible Input/Output**: File-based and pipe modes
 - **Smart Text Processing**: Automatic chunking for long texts
 - **Format Preservation**: Maintains Markdown and HTML formatting
@@ -54,6 +54,12 @@ llm-translate -p ollama -m llama3.2 -i text.txt -t es
 
 # Use Google Gemini
 llm-translate -p google -m gemini-2.0-flash -i text.txt -t fr
+
+# Use local Claude Code CLI (no API key needed)
+llm-translate -p claude-cli -i text.txt -t ru
+
+# Use local Codex CLI (no API key needed)
+llm-translate -p codex-cli -i text.txt -t es
 ```
 
 ## Configuration
@@ -111,6 +117,13 @@ providers:
     api_key: ${OPENROUTER_API_KEY}
     base_url: https://openrouter.ai/api/v1
     model: anthropic/claude-3.5-sonnet
+
+  # CLI-based providers (use locally installed CLI tools)
+  claude-cli:
+    base_url: claude    # path to claude binary
+
+  codex-cli:
+    base_url: codex     # path to codex binary
 
 # Strong validation settings
 strong_validation:
@@ -439,6 +452,30 @@ ollama serve
 # Translate using local model
 llm-translate -p ollama -m llama3.2 -i text.txt -t es
 ```
+
+### Using CLI-based Providers
+
+Use locally installed and authorized CLI tools (Claude Code, Codex) without managing API keys:
+
+```bash
+# Using Claude Code CLI (must be installed and authorized)
+llm-translate -p claude-cli -i article.txt -t ru
+
+# Using Codex CLI (must be installed and authorized)
+llm-translate -p codex-cli -i article.txt -t ru --sentiment --tags 5
+
+# Specify custom path to CLI binary
+llm-translate -p claude-cli -u /usr/local/bin/claude -i text.txt -t ru
+```
+
+**Requirements:**
+- Claude Code CLI: Install from https://claude.ai/code
+- Codex CLI: Install from https://github.com/openai/codex
+
+**Advantages:**
+- No API keys in config files
+- Uses CLI's own authorization
+- Leverages existing billing/limits
 
 ## Language Codes
 

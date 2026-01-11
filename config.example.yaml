@@ -102,6 +102,19 @@ providers:
     base_url: https://openrouter.ai/api/v1
     model: anthropic/claude-3.5-sonnet
 
+  # CLI-based providers (use locally installed and authorized CLI tools)
+  claude-cli:
+    # Uses locally installed 'claude' CLI (Claude Code)
+    # No API key needed - uses CLI's own authorization
+    # base_url is optional path to claude binary (default: "claude")
+    base_url: claude
+
+  codex-cli:
+    # Uses locally installed 'codex' CLI (OpenAI Codex)
+    # No API key needed - uses CLI's own authorization
+    # base_url is optional path to codex binary (default: "codex")
+    base_url: codex
+
 # Custom prompts (optional)
 prompts:
   system: |
