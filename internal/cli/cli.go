@@ -153,16 +153,6 @@ func runTranslate(ctx context.Context) error {
 		}
 	}
 
-	var output io.Writer = os.Stdout
-	if outputFile != "" {
-		file, err := os.Create(outputFile)
-		if err != nil {
-			return fmt.Errorf("failed to create output file: %w", err)
-		}
-		defer file.Close()
-		output = file
-	}
-
 	inputText, err := io.ReadAll(input)
 	if err != nil {
 		return fmt.Errorf("failed to read input: %w", err)
@@ -424,8 +414,15 @@ func runTranslate(ctx context.Context) error {
 	// Combine frontmatter with translated content
 	finalOutput := frontmatter + result.Text
 
-	if _, err := output.Write([]byte(finalOutput)); err != nil {
-		return fmt.Errorf("failed to write output: %w", err)
+	// Write to output file or stdout
+	if outputFile != "" {
+		if err := os.WriteFile(outputFile, []byte(finalOutput), 0644); err != nil {
+			return fmt.Errorf("failed to write output file: %w", err)
+		}
+	} else {
+		if _, err := os.Stdout.Write([]byte(finalOutput)); err != nil {
+			return fmt.Errorf("failed to write output: %w", err)
+		}
 	}
 
 	if verbose {
