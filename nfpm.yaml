@@ -1,0 +1,29 @@
+name: llm-translate
+arch: "${GOARCH}"
+platform: linux
+version: "${VERSION}"
+maintainer: "Sergei Vorontsov"
+description: "LLM-based translation tool for articles"
+vendor: "foxzi"
+homepage: "https://github.com/foxzi/llm-translate"
+license: "MIT"
+
+contents:
+  - src: ./dist/llm-translate
+    dst: /usr/bin/llm-translate
+    file_info:
+      mode: 0755
+
+  - src: ./config.example.yaml
+    dst: /etc/llm-translate/config.example.yaml
+    type: config
+    file_info:
+      mode: 0644
+
+overrides:
+  deb:
+    depends:
+      - libc6
+  rpm:
+    depends:
+      - glibc

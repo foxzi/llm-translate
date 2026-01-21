@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+env:
+  GO_VERSION: '1.24'
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,6 +22,8 @@ jobs:
             goarch: amd64
           - goos: darwin
             goarch: arm64
+          - goos: windows
+            goarch: amd64
 
     steps:
       - uses: actions/checkout@v4
@@ -26,48 +31,119 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Get version
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
 
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
         run: |
           mkdir -p dist
-          go build -ldflags="-s -w -X github.com/user/llm-translate/internal/cli.Version=${{ steps.version.outputs.VERSION }}" -o dist/llm-translate cmd/llm-translate/main.go
+          BINARY_NAME="llm-translate"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            BINARY_NAME="llm-translate.exe"
+          fi
+          go build -ldflags="-s -w -X github.com/foxzi/llm-translate/internal/cli.Version=${{ steps.version.outputs.VERSION }}" \
+            -o dist/${BINARY_NAME} cmd/llm-translate/main.go
 
       - name: Create archive
         run: |
           cd dist
           cp ../config.example.yaml .
           cp ../README.md .
-          zip -r llm-translate-${{ matrix.goos }}-${{ matrix.goarch }}.zip *
+          ARCHIVE_NAME="llm-translate-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            zip -r ${ARCHIVE_NAME}.zip *
+          else
+            tar -czvf ${ARCHIVE_NAME}.tar.gz *
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: llm-translate-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: dist/*.zip
+          name: archive-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+
+  package:
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+        format: [deb, rpm]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Build binary
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p dist
+          go build -ldflags="-s -w -X github.com/foxzi/llm-translate/internal/cli.Version=${{ steps.version.outputs.VERSION }}" \
+            -o dist/llm-translate cmd/llm-translate/main.go
+
+      - name: Install nfpm
+        run: |
+          wget -qO- https://github.com/goreleaser/nfpm/releases/download/v2.41.1/nfpm_2.41.1_linux_amd64.tar.gz | tar xz
+          sudo mv nfpm /usr/local/bin/
+
+      - name: Build package
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          GOARCH: ${{ matrix.arch }}
+        run: |
+          nfpm package --packager ${{ matrix.format }} --target dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.format }}-${{ matrix.arch }}
+          path: dist/*.${{ matrix.format }}
 
   release:
-    needs: build
+    needs: [build, package]
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Download artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          merge-multiple: true
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.deb" -o -name "*.rpm" \) -exec cp {} release/ \;
+          ls -la release/
+
+      - name: Generate checksums
+        run: |
+          cd release
+          sha256sum * > checksums-sha256.txt
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*.zip
+          files: release/*
           generate_release_notes: true
