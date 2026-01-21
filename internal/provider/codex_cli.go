@@ -10,7 +10,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/user/llm-translate/internal/config"
+	"github.com/foxzi/llm-translate/internal/config"
 )
 
 type CodexCLIProvider struct {

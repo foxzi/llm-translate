@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/user/llm-translate/internal/cli"
+	"github.com/foxzi/llm-translate/internal/cli"
 )
 
 func main() {

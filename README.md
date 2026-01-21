@@ -20,13 +20,13 @@ A powerful command-line tool for translating text between languages using variou
 ### From Source
 
 ```bash
-go install github.com/user/llm-translate/cmd/llm-translate@latest
+go install github.com/foxzi/llm-translate/cmd/llm-translate@latest
 ```
 
 ### Build Manually
 
 ```bash
-git clone https://github.com/user/llm-translate.git
+git clone https://github.com/foxzi/llm-translate.git
 cd llm-translate
 make build
 ```
@@ -548,4 +548,4 @@ MIT License - see LICENSE file for details
 
 ## Support
 
-For issues and feature requests, please use the [GitHub issue tracker](https://github.com/user/llm-translate/issues).
+For issues and feature requests, please use the [GitHub issue tracker](https://github.com/foxzi/llm-translate/issues).

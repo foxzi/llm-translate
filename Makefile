@@ -6,7 +6,7 @@ MAIN_PATH=cmd/llm-translate/main.go
 GO=go
 GOFLAGS=-v
 VERSION ?= dev
-LDFLAGS=-s -w -X github.com/user/llm-translate/internal/cli.Version=$(VERSION)
+LDFLAGS=-s -w -X github.com/foxzi/llm-translate/internal/cli.Version=$(VERSION)
 
 all: clean fmt vet build
 

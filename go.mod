@@ -1,4 +1,4 @@
-module github.com/user/llm-translate
+module github.com/foxzi/llm-translate
 
 go 1.25.0
 

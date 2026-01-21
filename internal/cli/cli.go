@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
-	"github.com/user/llm-translate/internal/config"
-	"github.com/user/llm-translate/internal/translator"
+	"github.com/foxzi/llm-translate/internal/config"
+	"github.com/foxzi/llm-translate/internal/translator"
 )
 
 var (

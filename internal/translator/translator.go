@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/user/llm-translate/internal/config"
-	"github.com/user/llm-translate/internal/provider"
-	"github.com/user/llm-translate/internal/proxy"
-	"github.com/user/llm-translate/internal/validator"
+	"github.com/foxzi/llm-translate/internal/config"
+	"github.com/foxzi/llm-translate/internal/provider"
+	"github.com/foxzi/llm-translate/internal/proxy"
+	"github.com/foxzi/llm-translate/internal/validator"
 )
 
 type Translator struct {

@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/user/llm-translate/internal/config"
+	"github.com/foxzi/llm-translate/internal/config"
 )
 
 type OpenRouterProvider struct {
@@ -109,7 +109,7 @@ func (p *OpenRouterProvider) Translate(ctx context.Context, req TranslateRequest
 	
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/foxzi/llm-translate")
 	httpReq.Header.Set("X-Title", "LLM Translate CLI")
 	
 	resp, err := p.httpClient.Do(httpReq)
@@ -177,7 +177,7 @@ func (p *OpenRouterProvider) AnalyzeSentiment(ctx context.Context, text string) 
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/foxzi/llm-translate")
 	httpReq.Header.Set("X-Title", "LLM Translate CLI")
 
 	resp, err := p.httpClient.Do(httpReq)
@@ -240,7 +240,7 @@ func (p *OpenRouterProvider) ExtractTags(ctx context.Context, text string, count
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/foxzi/llm-translate")
 	httpReq.Header.Set("X-Title", "LLM Translate CLI")
 
 	resp, err := p.httpClient.Do(httpReq)
@@ -301,7 +301,7 @@ func (p *OpenRouterProvider) Classify(ctx context.Context, text string) (Classif
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/foxzi/llm-translate")
 	httpReq.Header.Set("X-Title", "LLM Translate CLI")
 
 	resp, err := p.httpClient.Do(httpReq)
@@ -362,7 +362,7 @@ func (p *OpenRouterProvider) AnalyzeEmotions(ctx context.Context, text string) (
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/foxzi/llm-translate")
 	httpReq.Header.Set("X-Title", "LLM Translate CLI")
 
 	resp, err := p.httpClient.Do(httpReq)
@@ -423,7 +423,7 @@ func (p *OpenRouterProvider) AnalyzeFactuality(ctx context.Context, text string)
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/foxzi/llm-translate")
 	httpReq.Header.Set("X-Title", "LLM Translate CLI")
 
 	resp, err := p.httpClient.Do(httpReq)
@@ -484,7 +484,7 @@ func (p *OpenRouterProvider) AnalyzeImpact(ctx context.Context, text string) (Im
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/foxzi/llm-translate")
 	httpReq.Header.Set("X-Title", "LLM Translate CLI")
 
 	resp, err := p.httpClient.Do(httpReq)
@@ -545,7 +545,7 @@ func (p *OpenRouterProvider) AnalyzeSensationalism(ctx context.Context, text str
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/foxzi/llm-translate")
 	httpReq.Header.Set("X-Title", "LLM Translate CLI")
 
 	resp, err := p.httpClient.Do(httpReq)
@@ -606,7 +606,7 @@ func (p *OpenRouterProvider) ExtractEntities(ctx context.Context, text string) (
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/foxzi/llm-translate")
 	httpReq.Header.Set("X-Title", "LLM Translate CLI")
 
 	resp, err := p.httpClient.Do(httpReq)
@@ -667,7 +667,7 @@ func (p *OpenRouterProvider) ExtractEvents(ctx context.Context, text string) (Ev
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/foxzi/llm-translate")
 	httpReq.Header.Set("X-Title", "LLM Translate CLI")
 
 	resp, err := p.httpClient.Do(httpReq)
@@ -728,7 +728,7 @@ func (p *OpenRouterProvider) AnalyzeUsefulness(ctx context.Context, text string)
 
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/user/llm-translate")
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/foxzi/llm-translate")
 	httpReq.Header.Set("X-Title", "LLM Translate CLI")
 
 	resp, err := p.httpClient.Do(httpReq)

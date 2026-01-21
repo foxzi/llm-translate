@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/user/llm-translate/internal/config"
+	"github.com/foxzi/llm-translate/internal/config"
 )
 
 const SentimentPrompt = `Analyze the sentiment of the following text. Respond ONLY with a single line in format:

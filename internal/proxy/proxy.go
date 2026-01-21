@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/user/llm-translate/internal/config"
+	"github.com/foxzi/llm-translate/internal/config"
 	"golang.org/x/net/proxy"
 )
 
