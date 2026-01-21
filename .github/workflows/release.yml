@@ -102,9 +102,7 @@ jobs:
             -o dist/llm-translate cmd/llm-translate/main.go
 
       - name: Install nfpm
-        run: |
-          wget -qO- https://github.com/goreleaser/nfpm/releases/download/v2.41.1/nfpm_2.41.1_linux_amd64.tar.gz | tar xz
-          sudo mv nfpm /usr/local/bin/
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
 
       - name: Build package
         env:
