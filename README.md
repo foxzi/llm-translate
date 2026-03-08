@@ -4,7 +4,7 @@ A powerful command-line tool for translating text between languages using variou
 
 ## Features
 
-- **Multiple LLM Providers**: Support for OpenAI, Anthropic, Google, Ollama, OpenRouter, and CLI-based providers (Claude Code, Codex)
+- **Multiple LLM Providers**: Support for OpenAI, Anthropic, Google, Ollama, OpenRouter, and CLI-based providers (Claude Code, Codex, Qwen Code)
 - **Flexible Input/Output**: File-based and pipe modes
 - **Smart Text Processing**: Automatic chunking for long texts
 - **Format Preservation**: Maintains Markdown and HTML formatting
@@ -60,6 +60,9 @@ llm-translate -p claude-cli -i text.txt -t ru
 
 # Use local Codex CLI (no API key needed)
 llm-translate -p codex-cli -i text.txt -t es
+
+# Use local Qwen Code CLI (no API key needed)
+llm-translate -p qwen-cli -i text.txt -t ru
 ```
 
 ## Configuration
@@ -124,6 +127,9 @@ providers:
 
   codex-cli:
     base_url: codex     # path to codex binary
+
+  qwen-cli:
+    base_url: qwen      # path to qwen binary
 
 # Strong validation settings
 strong_validation:
@@ -455,7 +461,7 @@ llm-translate -p ollama -m llama3.2 -i text.txt -t es
 
 ### Using CLI-based Providers
 
-Use locally installed and authorized CLI tools (Claude Code, Codex) without managing API keys:
+Use locally installed and authorized CLI tools (Claude Code, Codex, Qwen Code) without managing API keys:
 
 ```bash
 # Using Claude Code CLI (must be installed and authorized)
@@ -464,6 +470,9 @@ llm-translate -p claude-cli -i article.txt -t ru
 # Using Codex CLI (must be installed and authorized)
 llm-translate -p codex-cli -i article.txt -t ru --sentiment --tags 5
 
+# Using Qwen Code CLI (must be installed and authorized)
+llm-translate -p qwen-cli -i article.txt -t ru --sentiment --tags 5
+
 # Specify custom path to CLI binary
 llm-translate -p claude-cli -u /usr/local/bin/claude -i text.txt -t ru
 ```
@@ -471,6 +480,7 @@ llm-translate -p claude-cli -u /usr/local/bin/claude -i text.txt -t ru
 **Requirements:**
 - Claude Code CLI: Install from https://claude.ai/code
 - Codex CLI: Install from https://github.com/openai/codex
+- Qwen Code CLI: Install from https://github.com/nicepkg/qwen-code
 
 **Advantages:**
 - No API keys in config files

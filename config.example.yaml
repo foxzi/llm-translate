@@ -115,6 +115,12 @@ providers:
     # base_url is optional path to codex binary (default: "codex")
     base_url: codex
 
+  qwen-cli:
+    # Uses locally installed 'qwen' CLI (Qwen Code)
+    # No API key needed - uses CLI's own authorization
+    # base_url is optional path to qwen binary (default: "qwen")
+    base_url: qwen
+
 # Custom prompts (optional)
 prompts:
   system: |
