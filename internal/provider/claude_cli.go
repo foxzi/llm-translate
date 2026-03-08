@@ -216,6 +216,17 @@ func (p *ClaudeCLIProvider) AnalyzeUsefulness(ctx context.Context, text string) 
 	return ParseUsefulnessResponse(result)
 }
 
+func (p *ClaudeCLIProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalysisRequest) (CombinedAnalysisResponse, error) {
+	prompt := BuildCombinedPrompt(req)
+
+	result, err := p.runCLI(ctx, prompt, req.Text)
+	if err != nil {
+		return CombinedAnalysisResponse{}, err
+	}
+
+	return ParseCombinedResponse(result, req), nil
+}
+
 func init() {
 	Register("claude-cli", NewClaudeCLIProvider)
 }

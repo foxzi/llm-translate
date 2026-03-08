@@ -17,31 +17,31 @@ type OllamaProvider struct {
 }
 
 type ollamaRequest struct {
-	Model    string         `json:"model"`
-	Prompt   string         `json:"prompt"`
-	System   string         `json:"system,omitempty"`
-	Stream   bool           `json:"stream"`
-	Options  ollamaOptions  `json:"options,omitempty"`
+	Model   string        `json:"model"`
+	Prompt  string        `json:"prompt"`
+	System  string        `json:"system,omitempty"`
+	Stream  bool          `json:"stream"`
+	Options ollamaOptions `json:"options,omitempty"`
 }
 
 type ollamaOptions struct {
 	Temperature float64 `json:"temperature,omitempty"`
-	NumPredict  int    `json:"num_predict,omitempty"`
+	NumPredict  int     `json:"num_predict,omitempty"`
 }
 
 type ollamaResponse struct {
-	Model     string `json:"model"`
-	CreatedAt string `json:"created_at"`
-	Response  string `json:"response"`
-	Done      bool   `json:"done"`
-	Context   []int  `json:"context,omitempty"`
-	TotalDuration    int64 `json:"total_duration,omitempty"`
-	LoadDuration     int64 `json:"load_duration,omitempty"`
-	PromptEvalCount  int   `json:"prompt_eval_count,omitempty"`
-	PromptEvalDuration int64 `json:"prompt_eval_duration,omitempty"`
-	EvalCount        int   `json:"eval_count,omitempty"`
-	EvalDuration     int64 `json:"eval_duration,omitempty"`
-	Error     string `json:"error,omitempty"`
+	Model              string `json:"model"`
+	CreatedAt          string `json:"created_at"`
+	Response           string `json:"response"`
+	Done               bool   `json:"done"`
+	Context            []int  `json:"context,omitempty"`
+	TotalDuration      int64  `json:"total_duration,omitempty"`
+	LoadDuration       int64  `json:"load_duration,omitempty"`
+	PromptEvalCount    int    `json:"prompt_eval_count,omitempty"`
+	PromptEvalDuration int64  `json:"prompt_eval_duration,omitempty"`
+	EvalCount          int    `json:"eval_count,omitempty"`
+	EvalDuration       int64  `json:"eval_duration,omitempty"`
+	Error              string `json:"error,omitempty"`
 }
 
 func NewOllamaProvider(cfg config.ProviderConfig, client *http.Client) Provider {
@@ -51,7 +51,7 @@ func NewOllamaProvider(cfg config.ProviderConfig, client *http.Client) Provider 
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "http://localhost:11434"
 	}
-	
+
 	return &OllamaProvider{
 		BaseProvider: BaseProvider{
 			name:       "ollama",
@@ -68,7 +68,7 @@ func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (T
 			"Output only the translation without explanations.",
 		req.SourceLang, req.TargetLang,
 	)
-	
+
 	if req.SourceLang == "auto" {
 		systemPrompt = fmt.Sprintf(
 			"You are a professional translator. Detect the source language and translate the text to %s. "+
@@ -77,9 +77,9 @@ func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (T
 			req.TargetLang,
 		)
 	}
-	
+
 	fullPrompt := p.buildPrompt(req, systemPrompt)
-	
+
 	ollamaReq := ollamaRequest{
 		Model:  p.config.Model,
 		System: fullPrompt,
@@ -90,49 +90,49 @@ func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (T
 			NumPredict:  req.MaxTokens,
 		},
 	}
-	
+
 	jsonData, err := json.Marshal(ollamaReq)
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	
+
 	url := strings.TrimRight(p.config.BaseURL, "/") + "/api/generate"
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	httpReq.Header.Set("Content-Type", "application/json")
-	
+
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	var ollamaResp ollamaResponse
 	if err := json.Unmarshal(body, &ollamaResp); err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	
+
 	if ollamaResp.Error != "" {
 		return TranslateResponse{}, fmt.Errorf("Ollama API error: %s", ollamaResp.Error)
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return TranslateResponse{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-	
+
 	tokensUsed := 0
 	if ollamaResp.PromptEvalCount > 0 && ollamaResp.EvalCount > 0 {
 		tokensUsed = ollamaResp.PromptEvalCount + ollamaResp.EvalCount
 	}
-	
+
 	return TranslateResponse{
 		Text:       ollamaResp.Response,
 		TokensUsed: tokensUsed,
@@ -626,6 +626,56 @@ func (p *OllamaProvider) AnalyzeUsefulness(ctx context.Context, text string) (Us
 	}
 
 	return ParseUsefulnessResponse(ollamaResp.Response)
+}
+
+func (p *OllamaProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalysisRequest) (CombinedAnalysisResponse, error) {
+	prompt := BuildCombinedPrompt(req)
+
+	ollamaReq := ollamaRequest{
+		Model:  p.config.Model,
+		System: prompt,
+		Prompt: req.Text,
+		Stream: false,
+		Options: ollamaOptions{
+			Temperature: 0.2,
+			NumPredict:  2000,
+		},
+	}
+
+	jsonData, err := json.Marshal(ollamaReq)
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/api/generate"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var ollamaResp ollamaResponse
+	if err := json.Unmarshal(body, &ollamaResp); err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if ollamaResp.Error != "" {
+		return CombinedAnalysisResponse{}, fmt.Errorf("Ollama API error: %s", ollamaResp.Error)
+	}
+
+	return ParseCombinedResponse(ollamaResp.Response, req), nil
 }
 
 func init() {

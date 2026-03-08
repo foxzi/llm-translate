@@ -19,9 +19,9 @@ type CodexCLIProvider struct {
 }
 
 type codexJSONEvent struct {
-	Type   string         `json:"type"`
-	Item   *codexJSONItem `json:"item,omitempty"`
-	Usage  *codexUsage    `json:"usage,omitempty"`
+	Type  string         `json:"type"`
+	Item  *codexJSONItem `json:"item,omitempty"`
+	Usage *codexUsage    `json:"usage,omitempty"`
 }
 
 type codexJSONItem struct {
@@ -305,6 +305,20 @@ func (p *CodexCLIProvider) AnalyzeUsefulness(ctx context.Context, text string) (
 	}
 
 	return ParseUsefulnessResponse(result)
+}
+
+func (p *CodexCLIProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalysisRequest) (CombinedAnalysisResponse, error) {
+	prompt := BuildCombinedPrompt(req) + "\n\n" + req.Text
+
+	result, _, err := p.runCLIJSON(ctx, prompt)
+	if err != nil {
+		result, err = p.runCLI(ctx, prompt)
+		if err != nil {
+			return CombinedAnalysisResponse{}, err
+		}
+	}
+
+	return ParseCombinedResponse(result, req), nil
 }
 
 func init() {

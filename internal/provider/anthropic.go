@@ -19,9 +19,9 @@ type AnthropicProvider struct {
 type anthropicRequest struct {
 	Model       string             `json:"model"`
 	Messages    []anthropicMessage `json:"messages"`
-	MaxTokens   int               `json:"max_tokens"`
-	Temperature float64           `json:"temperature,omitempty"`
-	System      string            `json:"system,omitempty"`
+	MaxTokens   int                `json:"max_tokens"`
+	Temperature float64            `json:"temperature,omitempty"`
+	System      string             `json:"system,omitempty"`
 }
 
 type anthropicMessage struct {
@@ -36,9 +36,9 @@ type anthropicResponse struct {
 	Content      []anthropicContent `json:"content"`
 	Model        string             `json:"model"`
 	StopReason   string             `json:"stop_reason"`
-	StopSequence *string           `json:"stop_sequence"`
-	Usage        anthropicUsage    `json:"usage"`
-	Error        *anthropicError   `json:"error,omitempty"`
+	StopSequence *string            `json:"stop_sequence"`
+	Usage        anthropicUsage     `json:"usage"`
+	Error        *anthropicError    `json:"error,omitempty"`
 }
 
 type anthropicContent struct {
@@ -63,7 +63,7 @@ func NewAnthropicProvider(cfg config.ProviderConfig, client *http.Client) Provid
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "https://api.anthropic.com"
 	}
-	
+
 	return &AnthropicProvider{
 		BaseProvider: BaseProvider{
 			name:       "anthropic",
@@ -80,7 +80,7 @@ func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest)
 			"Output only the translation without explanations.",
 		req.SourceLang, req.TargetLang,
 	)
-	
+
 	if req.SourceLang == "auto" {
 		systemPrompt = fmt.Sprintf(
 			"You are a professional translator. Detect the source language and translate the text to %s. "+
@@ -89,9 +89,9 @@ func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest)
 			req.TargetLang,
 		)
 	}
-	
+
 	fullPrompt := p.buildPrompt(req, systemPrompt)
-	
+
 	anthropicReq := anthropicRequest{
 		Model:       p.config.Model,
 		System:      fullPrompt,
@@ -104,57 +104,57 @@ func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest)
 			},
 		},
 	}
-	
+
 	jsonData, err := json.Marshal(anthropicReq)
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	
+
 	url := strings.TrimRight(p.config.BaseURL, "/") + "/v1/messages"
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("x-api-key", p.config.APIKey)
 	httpReq.Header.Set("anthropic-version", "2023-06-01")
-	
+
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	var anthropicResp anthropicResponse
 	if err := json.Unmarshal(body, &anthropicResp); err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	
+
 	if anthropicResp.Error != nil {
 		return TranslateResponse{}, fmt.Errorf("Anthropic API error: %s", anthropicResp.Error.Message)
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return TranslateResponse{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-	
+
 	if len(anthropicResp.Content) == 0 {
 		return TranslateResponse{}, fmt.Errorf("no content in response")
 	}
-	
+
 	var translatedText string
 	for _, content := range anthropicResp.Content {
 		if content.Type == "text" {
 			translatedText += content.Text
 		}
 	}
-	
+
 	return TranslateResponse{
 		Text:       translatedText,
 		TokensUsed: anthropicResp.Usage.InputTokens + anthropicResp.Usage.OutputTokens,
@@ -791,6 +791,71 @@ func (p *AnthropicProvider) AnalyzeUsefulness(ctx context.Context, text string) 
 	}
 
 	return ParseUsefulnessResponse(responseText)
+}
+
+func (p *AnthropicProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalysisRequest) (CombinedAnalysisResponse, error) {
+	prompt := BuildCombinedPrompt(req)
+
+	anthropicReq := anthropicRequest{
+		Model:       p.config.Model,
+		System:      prompt,
+		MaxTokens:   2000,
+		Temperature: 0.2,
+		Messages: []anthropicMessage{
+			{
+				Role:    "user",
+				Content: req.Text,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(anthropicReq)
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/v1/messages"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-api-key", p.config.APIKey)
+	httpReq.Header.Set("anthropic-version", "2023-06-01")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var anthropicResp anthropicResponse
+	if err := json.Unmarshal(body, &anthropicResp); err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if anthropicResp.Error != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("Anthropic API error: %s", anthropicResp.Error.Message)
+	}
+
+	if len(anthropicResp.Content) == 0 {
+		return CombinedAnalysisResponse{}, fmt.Errorf("no content in response")
+	}
+
+	var responseText string
+	for _, content := range anthropicResp.Content {
+		if content.Type == "text" {
+			responseText += content.Text
+		}
+	}
+
+	return ParseCombinedResponse(responseText, req), nil
 }
 
 func init() {

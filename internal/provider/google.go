@@ -17,14 +17,14 @@ type GoogleProvider struct {
 }
 
 type googleRequest struct {
-	Contents         []googleContent     `json:"contents"`
-	GenerationConfig googleGenConfig     `json:"generationConfig,omitempty"`
-	SystemInstruction *googleContent     `json:"systemInstruction,omitempty"`
+	Contents          []googleContent `json:"contents"`
+	GenerationConfig  googleGenConfig `json:"generationConfig,omitempty"`
+	SystemInstruction *googleContent  `json:"systemInstruction,omitempty"`
 }
 
 type googleContent struct {
 	Parts []googlePart `json:"parts"`
-	Role  string      `json:"role,omitempty"`
+	Role  string       `json:"role,omitempty"`
 }
 
 type googlePart struct {
@@ -39,15 +39,15 @@ type googleGenConfig struct {
 }
 
 type googleResponse struct {
-	Candidates     []googleCandidate `json:"candidates"`
-	UsageMetadata  googleUsage      `json:"usageMetadata"`
-	Error          *googleError     `json:"error,omitempty"`
+	Candidates    []googleCandidate `json:"candidates"`
+	UsageMetadata googleUsage       `json:"usageMetadata"`
+	Error         *googleError      `json:"error,omitempty"`
 }
 
 type googleCandidate struct {
-	Content       googleContent `json:"content"`
-	FinishReason  string       `json:"finishReason"`
-	Index         int          `json:"index"`
+	Content      googleContent `json:"content"`
+	FinishReason string        `json:"finishReason"`
+	Index        int           `json:"index"`
 }
 
 type googleUsage struct {
@@ -69,7 +69,7 @@ func NewGoogleProvider(cfg config.ProviderConfig, client *http.Client) Provider 
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "https://generativelanguage.googleapis.com/v1beta"
 	}
-	
+
 	return &GoogleProvider{
 		BaseProvider: BaseProvider{
 			name:       "google",
@@ -86,7 +86,7 @@ func (p *GoogleProvider) Translate(ctx context.Context, req TranslateRequest) (T
 			"Output only the translation without explanations.",
 		req.SourceLang, req.TargetLang,
 	)
-	
+
 	if req.SourceLang == "auto" {
 		systemPrompt = fmt.Sprintf(
 			"You are a professional translator. Detect the source language and translate the text to %s. "+
@@ -95,9 +95,9 @@ func (p *GoogleProvider) Translate(ctx context.Context, req TranslateRequest) (T
 			req.TargetLang,
 		)
 	}
-	
+
 	fullPrompt := p.buildPrompt(req, systemPrompt)
-	
+
 	googleReq := googleRequest{
 		Contents: []googleContent{
 			{
@@ -117,58 +117,58 @@ func (p *GoogleProvider) Translate(ctx context.Context, req TranslateRequest) (T
 			},
 		},
 	}
-	
+
 	jsonData, err := json.Marshal(googleReq)
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s", 
+
+	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
 		p.config.APIKey,
 	)
-	
+
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	httpReq.Header.Set("Content-Type", "application/json")
-	
+
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	var googleResp googleResponse
 	if err := json.Unmarshal(body, &googleResp); err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	
+
 	if googleResp.Error != nil {
 		return TranslateResponse{}, fmt.Errorf("Google API error: %s", googleResp.Error.Message)
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return TranslateResponse{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-	
+
 	if len(googleResp.Candidates) == 0 {
 		return TranslateResponse{}, fmt.Errorf("no candidates in response")
 	}
-	
+
 	var translatedText string
 	for _, part := range googleResp.Candidates[0].Content.Parts {
 		translatedText += part.Text
 	}
-	
+
 	return TranslateResponse{
 		Text:       translatedText,
 		TokensUsed: googleResp.UsageMetadata.TotalTokenCount,
@@ -885,6 +885,79 @@ func (p *GoogleProvider) AnalyzeUsefulness(ctx context.Context, text string) (Us
 	}
 
 	return ParseUsefulnessResponse(responseText)
+}
+
+func (p *GoogleProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalysisRequest) (CombinedAnalysisResponse, error) {
+	prompt := BuildCombinedPrompt(req)
+
+	googleReq := googleRequest{
+		Contents: []googleContent{
+			{
+				Parts: []googlePart{
+					{Text: req.Text},
+				},
+				Role: "user",
+			},
+		},
+		GenerationConfig: googleGenConfig{
+			Temperature:     0.2,
+			MaxOutputTokens: 2000,
+		},
+		SystemInstruction: &googleContent{
+			Parts: []googlePart{
+				{Text: prompt},
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(googleReq)
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+		strings.TrimRight(p.config.BaseURL, "/"),
+		p.config.Model,
+		p.config.APIKey,
+	)
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var googleResp googleResponse
+	if err := json.Unmarshal(body, &googleResp); err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if googleResp.Error != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("Google API error: %s", googleResp.Error.Message)
+	}
+
+	if len(googleResp.Candidates) == 0 {
+		return CombinedAnalysisResponse{}, fmt.Errorf("no candidates in response")
+	}
+
+	var responseText string
+	for _, part := range googleResp.Candidates[0].Content.Parts {
+		responseText += part.Text
+	}
+
+	return ParseCombinedResponse(responseText, req), nil
 }
 
 func init() {

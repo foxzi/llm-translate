@@ -14,13 +14,26 @@ import (
 const SentimentPrompt = `Analyze the sentiment of the following text. Respond ONLY with a single line in format:
 SENTIMENT: <positive|negative|neutral> (<score from -1.0 to 1.0>)
 
+Rules:
+- Round score to exactly 1 decimal place (e.g. 0.7, not 0.65 or 0.700)
+- Score must be consistent with label: positive > 0.0, negative < 0.0, neutral around 0.0
+- Analyze overall tone, not individual sentences
+- Factual reporting with no clear bias = neutral (score near 0.0)
+
 Text to analyze:`
 
 const TagsPromptTemplate = `Extract the %d most important keywords/tags from the following text.
 Respond ONLY with a single line in format:
 TAGS: tag1, tag2, tag3, ...
 
-Use lowercase, single words or short phrases. No hashtags.
+Normalization rules:
+- Tags MUST be in the same language as the analyzed text
+- Use lowercase only
+- Use nominative case / base form (именительный падеж): "экономика" not "экономики", "рынок труда" not "рынка труда"
+- Use single words or short phrases (2-3 words max)
+- No hashtags, no articles, no prepositions
+- No duplicates
+- Prefer nouns and noun phrases
 
 Text to analyze:`
 
@@ -45,7 +58,10 @@ fear:<0.0-1.0>, anger:<0.0-1.0>, hope:<0.0-1.0>, uncertainty:<0.0-1.0>, optimism
 Rules:
 - Include only emotions with score > 0.1
 - Score represents intensity (0.0 = absent, 1.0 = very strong)
+- Round all scores to exactly 1 decimal place (e.g. 0.3, not 0.28 or 0.300)
 - List emotions in descending order by score
+- Be conservative: factual news articles typically have low emotion scores
+- Advertising/promotional text should have high optimism, not high fear/panic
 
 Example response:
 EMOTIONS: fear:0.8, uncertainty:0.6, panic:0.3
@@ -91,17 +107,47 @@ LOCATIONS: <comma-separated list of locations/places>
 DATES: <comma-separated list of dates/time references>
 AMOUNTS: <comma-separated list of monetary amounts, percentages, numbers>
 
-Rules:
-- Extract only entities explicitly mentioned in the text
-- Use "none" if no entities found for a category
-- Keep original names/values as they appear
+Normalization rules (CRITICAL - follow strictly):
 
-Example response:
-PERSONS: John Smith, Maria Garcia
-ORGANIZATIONS: Apple Inc, European Union
-LOCATIONS: New York, Germany
-DATES: January 2024, last week
-AMOUNTS: $5 million, 15%, 1000 units
+LANGUAGE & GRAMMAR:
+- ALL entities MUST be in nominative case / base form (именительный падеж), regardless of how they appear in text
+- If text says "в Венесуэле" -> write "Венесуэла", if "Николаса Мадуро" -> write "Николас Мадуро"
+- If text says "федеральной резервной системы" -> write "Федеральная резервная система"
+- No prepositions, no articles before entities
+
+PERSONS:
+- Full name only, one entry per person (e.g. "Дональд Трамп", not "Трамп" as a separate entry)
+- Nominative case: "Николас Мадуро" not "Николаса Мадуро"
+
+ORGANIZATIONS:
+- Only proper names of companies, agencies, exchanges, media outlets
+- Do NOT include: common nouns, country names, product names, game titles, blockchain/crypto network names
+- Nominative case: "Нью-Йоркская фондовая биржа" not "Нью-Йоркской фондовой бирже"
+
+LOCATIONS:
+- Only geographic places (countries, cities, regions)
+- Do NOT include: company names, blockchain names, platform names
+- Nominative case: "США" not "в США", "Венесуэла" not "Венесуэлы"
+- No duplicates (same place in different cases = one entry)
+
+DATES:
+- Bare dates without prepositions: "январь 2024" not "в январе 2024", "2025 год" not "с 2025 года"
+- Consistent format, nominative case
+
+AMOUNTS:
+- Extract complete numbers with context (e.g. "$1.5 trillion" not "$1" and "5 trillion" separately)
+- Include currency symbols. Do NOT extract page numbers, article IDs, or non-meaningful numbers
+
+GENERAL:
+- No duplicates in any category
+- Use "none" if no entities found for a category
+
+Example response (Russian text):
+PERSONS: Дональд Трамп, Николас Мадуро
+ORGANIZATIONS: Polymarket, Dow Jones, Федеральная резервная система
+LOCATIONS: США, Венесуэла, Нью-Йорк
+DATES: январь 2024, 2 квартал 2025
+AMOUNTS: $5 млн, 15%, 1000 единиц
 
 Text to analyze:`
 
@@ -113,6 +159,8 @@ Rules:
 - Extract only actual events/actions mentioned
 - Include who/what and action when possible
 - Maximum 5 most important events
+- Use the same language as the analyzed text
+- Use nominative case for subjects (именительный падеж)
 - Use "none" if no clear events found
 
 Example response:
@@ -171,6 +219,156 @@ REASONS: factual_information, contains_analysis, new_insights
 
 Text to analyze:`
 
+func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
+	var sections []string
+
+	sections = append(sections, "Analyze the following text and provide results for ALL requested sections below.")
+	sections = append(sections, "Respond in the EXACT format specified for each section. Each section starts on a new line.")
+	sections = append(sections, "")
+
+	if req.Sentiment {
+		sections = append(sections, "=== SENTIMENT ===")
+		sections = append(sections, "SENTIMENT: <positive|negative|neutral> (<score from -1.0 to 1.0>)")
+		sections = append(sections, "Rules: round score to 1 decimal place. Factual reporting = neutral (near 0.0).")
+		sections = append(sections, "")
+	}
+
+	if req.TagsCount > 0 {
+		sections = append(sections, "=== TAGS ===")
+		sections = append(sections, fmt.Sprintf("TAGS: <extract %d most important tags, comma-separated>", req.TagsCount))
+		sections = append(sections, "Rules: same language as text, lowercase, nominative case, nouns/noun phrases, no duplicates.")
+		sections = append(sections, "")
+	}
+
+	if req.Classify {
+		sections = append(sections, "=== CLASSIFY ===")
+		sections = append(sections, "TOPICS: <from: politics, economics, technology, medicine, incidents>")
+		sections = append(sections, "SCOPE: <from: regional, international>")
+		sections = append(sections, "TYPE: <from: corporate, regulatory, macro>")
+		sections = append(sections, "")
+	}
+
+	if req.Emotions {
+		sections = append(sections, "=== EMOTIONS ===")
+		sections = append(sections, "EMOTIONS: <fear:X.X, anger:X.X, hope:X.X, uncertainty:X.X, optimism:X.X, panic:X.X>")
+		sections = append(sections, "Rules: only emotions > 0.1, round to 1 decimal, descending order. Be conservative for factual news.")
+		sections = append(sections, "")
+	}
+
+	if req.Factuality {
+		sections = append(sections, "=== FACTUALITY ===")
+		sections = append(sections, "FACTUALITY: <confirmed|rumors|forecasts|unsourced> (<confidence 0.0-1.0>)")
+		sections = append(sections, "EVIDENCE: <comma-separated: official_source, statistics, quotes, documents, expert_opinion, anonymous_source, speculation, prediction>")
+		sections = append(sections, "")
+	}
+
+	if req.Impact {
+		sections = append(sections, "=== IMPACT ===")
+		sections = append(sections, "AFFECTED: <from: individuals, business, government, investors, consumers>")
+		sections = append(sections, "")
+	}
+
+	if req.Sensationalism {
+		sections = append(sections, "=== SENSATIONALISM ===")
+		sections = append(sections, "SENSATIONALISM: <neutral|emotional|clickbait|manipulative> (<confidence 0.0-1.0>)")
+		sections = append(sections, "MARKERS: <comma-separated markers>")
+		sections = append(sections, "")
+	}
+
+	if req.Usefulness {
+		sections = append(sections, "=== USEFULNESS ===")
+		sections = append(sections, "USEFULNESS: <useful|useless> (<confidence 0.0-1.0>)")
+		sections = append(sections, "REASONS: <comma-separated reasons>")
+		sections = append(sections, "")
+	}
+
+	if req.Entities {
+		sections = append(sections, "=== ENTITIES ===")
+		sections = append(sections, "PERSONS: <comma-separated, full names, nominative case, no duplicates>")
+		sections = append(sections, "ORGANIZATIONS: <comma-separated, proper names only, no common nouns/countries/blockchains>")
+		sections = append(sections, "LOCATIONS: <comma-separated, geographic places only, nominative case>")
+		sections = append(sections, "DATES: <comma-separated, bare dates without prepositions, nominative case>")
+		sections = append(sections, "AMOUNTS: <comma-separated, complete numbers with currency>")
+		sections = append(sections, "")
+	}
+
+	if req.Events {
+		sections = append(sections, "=== EVENTS ===")
+		sections = append(sections, "EVENTS: <semicolon-separated, 3-10 words each, max 5 events, same language as text>")
+		sections = append(sections, "")
+	}
+
+	sections = append(sections, "Text to analyze:")
+
+	return strings.Join(sections, "\n")
+}
+
+func ParseCombinedResponse(response string, req CombinedAnalysisRequest) CombinedAnalysisResponse {
+	result := CombinedAnalysisResponse{}
+
+	if req.Sentiment {
+		if s, err := ParseSentimentResponse(response); err == nil {
+			result.Sentiment = &s
+		}
+	}
+
+	if req.TagsCount > 0 {
+		if t, err := ParseTagsResponse(response); err == nil {
+			result.Tags = &t
+		}
+	}
+
+	if req.Classify {
+		if c, err := ParseClassifyResponse(response); err == nil {
+			result.Classify = &c
+		}
+	}
+
+	if req.Emotions {
+		if e, err := ParseEmotionsResponse(response); err == nil {
+			result.Emotions = &e
+		}
+	}
+
+	if req.Factuality {
+		if f, err := ParseFactualityResponse(response); err == nil {
+			result.Factuality = &f
+		}
+	}
+
+	if req.Impact {
+		if i, err := ParseImpactResponse(response); err == nil {
+			result.Impact = &i
+		}
+	}
+
+	if req.Sensationalism {
+		if s, err := ParseSensationalismResponse(response); err == nil {
+			result.Sensationalism = &s
+		}
+	}
+
+	if req.Usefulness {
+		if u, err := ParseUsefulnessResponse(response); err == nil {
+			result.Usefulness = &u
+		}
+	}
+
+	if req.Entities {
+		if e, err := ParseEntitiesResponse(response); err == nil {
+			result.Entities = &e
+		}
+	}
+
+	if req.Events {
+		if e, err := ParseEventsResponse(response); err == nil {
+			result.Events = &e
+		}
+	}
+
+	return result
+}
+
 type Provider interface {
 	Name() string
 	Translate(ctx context.Context, req TranslateRequest) (TranslateResponse, error)
@@ -184,7 +382,35 @@ type Provider interface {
 	AnalyzeUsefulness(ctx context.Context, text string) (UsefulnessResponse, error)
 	ExtractEntities(ctx context.Context, text string) (EntitiesResponse, error)
 	ExtractEvents(ctx context.Context, text string) (EventsResponse, error)
+	AnalyzeCombined(ctx context.Context, req CombinedAnalysisRequest) (CombinedAnalysisResponse, error)
 	ValidateConfig() error
+}
+
+type CombinedAnalysisRequest struct {
+	Text           string
+	Sentiment      bool
+	TagsCount      int
+	Classify       bool
+	Emotions       bool
+	Factuality     bool
+	Impact         bool
+	Sensationalism bool
+	Usefulness     bool
+	Entities       bool
+	Events         bool
+}
+
+type CombinedAnalysisResponse struct {
+	Sentiment      *SentimentResponse
+	Tags           *TagsResponse
+	Classify       *ClassifyResponse
+	Emotions       *EmotionsResponse
+	Factuality     *FactualityResponse
+	Impact         *ImpactResponse
+	Sensationalism *SensationalismResponse
+	Usefulness     *UsefulnessResponse
+	Entities       *EntitiesResponse
+	Events         *EventsResponse
 }
 
 type TranslateRequest struct {
@@ -281,11 +507,11 @@ func (b *BaseProvider) ValidateConfig() error {
 
 func (b *BaseProvider) buildPrompt(req TranslateRequest, systemPrompt string) string {
 	prompt := systemPrompt
-	
+
 	if req.Context != "" {
 		prompt += "\n\nContext: " + req.Context
 	}
-	
+
 	if req.Style != "" {
 		stylePrompts := map[string]string{
 			"formal":    "Use formal language appropriate for official documents.",
@@ -297,12 +523,20 @@ func (b *BaseProvider) buildPrompt(req TranslateRequest, systemPrompt string) st
 			prompt += "\n\n" + stylePrompt
 		}
 	}
-	
+
 	if len(req.Glossary) > 0 {
 		prompt += "\n\nGlossary (use these translations):\n"
 		for _, entry := range req.Glossary {
-			if entry.Source != "" && entry.Target != "" {
-				prompt += fmt.Sprintf("- %s -> %s", entry.Source, entry.Target)
+			source := entry.Source
+			target := entry.Target
+			if source == "" {
+				source = entry.Term
+			}
+			if target == "" {
+				target = entry.Translation
+			}
+			if source != "" && target != "" {
+				prompt += fmt.Sprintf("- %s -> %s", source, target)
 				if entry.Note != "" {
 					prompt += " (" + entry.Note + ")"
 				}
@@ -310,11 +544,11 @@ func (b *BaseProvider) buildPrompt(req TranslateRequest, systemPrompt string) st
 			}
 		}
 	}
-	
+
 	if req.PreserveFormat {
 		prompt += "\n\nPreserve all formatting including markdown, HTML tags, and code blocks."
 	}
-	
+
 	return prompt
 }
 
@@ -335,12 +569,12 @@ func Get(name string, cfg config.ProviderConfig, client *http.Client) (Provider,
 	if !ok {
 		return nil, fmt.Errorf("unknown provider: %s", name)
 	}
-	
+
 	provider := factory(cfg, client)
 	if err := provider.ValidateConfig(); err != nil {
 		return nil, err
 	}
-	
+
 	return provider, nil
 }
 
@@ -453,6 +687,59 @@ func parseCommaSeparated(s string) []string {
 	return result
 }
 
+// parseCommaSeparatedKeepCase splits comma-separated values preserving original case.
+// Used for entities where capitalization matters (person names, organizations, etc).
+func parseCommaSeparatedKeepCase(s string) []string {
+	var result []string
+	parts := strings.Split(s, ",")
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		lower := strings.ToLower(p)
+		if p != "" && lower != "none" {
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
+// filterAmounts removes garbage from extracted amounts list.
+// Filters out: standalone bare numbers (no currency/unit), very short fragments.
+var amountHasContextRe = regexp.MustCompile(`(?i)[\$€£¥₽%]|млн|млрд|тыс|трлн|million|billion|thousand|trillion|процент|percent|доллар|dollar|евро|euro|рубл|рубле|фунт|pound|иен|yen|юан|yuan`)
+
+func filterAmounts(amounts []string) []string {
+	var result []string
+	for _, a := range amounts {
+		a = strings.TrimSpace(a)
+		if a == "" {
+			continue
+		}
+		// Skip standalone bare numbers without any currency/unit context
+		if isBareNumber(a) {
+			continue
+		}
+		// Skip very short fragments (1-2 chars) like "$" or "4"
+		if len([]rune(a)) <= 2 && !amountHasContextRe.MatchString(a) {
+			continue
+		}
+		result = append(result, a)
+	}
+	return result
+}
+
+// isBareNumber returns true if the string is just a plain number (integer or decimal)
+// without any currency symbols, units, or meaningful context.
+func isBareNumber(s string) bool {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return false
+	}
+	// Remove thousands separators (spaces, commas in numbers)
+	cleaned := strings.ReplaceAll(s, " ", "")
+	cleaned = strings.ReplaceAll(cleaned, ",", "")
+	_, err := strconv.ParseFloat(cleaned, 64)
+	return err == nil
+}
+
 func ParseEmotionsResponse(response string) (EmotionsResponse, error) {
 	response = strings.TrimSpace(response)
 	result := EmotionsResponse{
@@ -558,34 +845,34 @@ func ParseEntitiesResponse(response string) (EntitiesResponse, error) {
 	response = strings.TrimSpace(response)
 	result := EntitiesResponse{}
 
-	// Parse PERSONS
+	// Parse PERSONS (keep case for proper names)
 	personsRe := regexp.MustCompile(`(?i)PERSONS:\s*(.+)`)
 	if matches := personsRe.FindStringSubmatch(response); len(matches) >= 2 {
-		result.Persons = parseCommaSeparated(matches[1])
+		result.Persons = parseCommaSeparatedKeepCase(matches[1])
 	}
 
-	// Parse ORGANIZATIONS
+	// Parse ORGANIZATIONS (keep case for proper names)
 	orgsRe := regexp.MustCompile(`(?i)ORGANIZATIONS:\s*(.+)`)
 	if matches := orgsRe.FindStringSubmatch(response); len(matches) >= 2 {
-		result.Organizations = parseCommaSeparated(matches[1])
+		result.Organizations = parseCommaSeparatedKeepCase(matches[1])
 	}
 
-	// Parse LOCATIONS
+	// Parse LOCATIONS (keep case for proper names)
 	locsRe := regexp.MustCompile(`(?i)LOCATIONS:\s*(.+)`)
 	if matches := locsRe.FindStringSubmatch(response); len(matches) >= 2 {
-		result.Locations = parseCommaSeparated(matches[1])
+		result.Locations = parseCommaSeparatedKeepCase(matches[1])
 	}
 
-	// Parse DATES
+	// Parse DATES (keep case for date formatting)
 	datesRe := regexp.MustCompile(`(?i)DATES:\s*(.+)`)
 	if matches := datesRe.FindStringSubmatch(response); len(matches) >= 2 {
-		result.Dates = parseCommaSeparated(matches[1])
+		result.Dates = parseCommaSeparatedKeepCase(matches[1])
 	}
 
-	// Parse AMOUNTS
+	// Parse AMOUNTS (keep case, then filter garbage)
 	amountsRe := regexp.MustCompile(`(?i)AMOUNTS:\s*(.+)`)
 	if matches := amountsRe.FindStringSubmatch(response); len(matches) >= 2 {
-		result.Amounts = parseCommaSeparated(matches[1])
+		result.Amounts = filterAmounts(parseCommaSeparatedKeepCase(matches[1]))
 	}
 
 	return result, nil

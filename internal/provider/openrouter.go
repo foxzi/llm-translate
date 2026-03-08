@@ -17,12 +17,12 @@ type OpenRouterProvider struct {
 }
 
 type openRouterRequest struct {
-	Model       string       `json:"model"`
-	Messages    []message    `json:"messages"`
-	Temperature float64      `json:"temperature,omitempty"`
-	MaxTokens   int          `json:"max_tokens,omitempty"`
-	TopP        float64      `json:"top_p,omitempty"`
-	Stream      bool         `json:"stream"`
+	Model       string    `json:"model"`
+	Messages    []message `json:"messages"`
+	Temperature float64   `json:"temperature,omitempty"`
+	MaxTokens   int       `json:"max_tokens,omitempty"`
+	TopP        float64   `json:"top_p,omitempty"`
+	Stream      bool      `json:"stream"`
 }
 
 type openRouterResponse struct {
@@ -50,7 +50,7 @@ func NewOpenRouterProvider(cfg config.ProviderConfig, client *http.Client) Provi
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "https://openrouter.ai/api/v1"
 	}
-	
+
 	return &OpenRouterProvider{
 		BaseProvider: BaseProvider{
 			name:       "openrouter",
@@ -67,7 +67,7 @@ func (p *OpenRouterProvider) Translate(ctx context.Context, req TranslateRequest
 			"Output only the translation without explanations.",
 		req.SourceLang, req.TargetLang,
 	)
-	
+
 	if req.SourceLang == "auto" {
 		systemPrompt = fmt.Sprintf(
 			"You are a professional translator. Detect the source language and translate the text to %s. "+
@@ -76,9 +76,9 @@ func (p *OpenRouterProvider) Translate(ctx context.Context, req TranslateRequest
 			req.TargetLang,
 		)
 	}
-	
+
 	fullPrompt := p.buildPrompt(req, systemPrompt)
-	
+
 	openRouterReq := openRouterRequest{
 		Model:       p.config.Model,
 		Temperature: req.Temperature,
@@ -95,51 +95,51 @@ func (p *OpenRouterProvider) Translate(ctx context.Context, req TranslateRequest
 			},
 		},
 	}
-	
+
 	jsonData, err := json.Marshal(openRouterReq)
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	
+
 	url := strings.TrimRight(p.config.BaseURL, "/") + "/chat/completions"
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to create request: %w", err)
 	}
-	
+
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
 	httpReq.Header.Set("HTTP-Referer", "https://github.com/foxzi/llm-translate")
 	httpReq.Header.Set("X-Title", "LLM Translate CLI")
-	
+
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to read response: %w", err)
 	}
-	
+
 	var openRouterResp openRouterResponse
 	if err := json.Unmarshal(body, &openRouterResp); err != nil {
 		return TranslateResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
-	
+
 	if openRouterResp.Error != nil {
 		return TranslateResponse{}, fmt.Errorf("OpenRouter API error: %s", openRouterResp.Error.Message)
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return TranslateResponse{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-	
+
 	if len(openRouterResp.Choices) == 0 {
 		return TranslateResponse{}, fmt.Errorf("no choices in response")
 	}
-	
+
 	return TranslateResponse{
 		Text:       openRouterResp.Choices[0].Message.Content,
 		TokensUsed: openRouterResp.Usage.TotalTokens,
@@ -756,6 +756,69 @@ func (p *OpenRouterProvider) AnalyzeUsefulness(ctx context.Context, text string)
 	}
 
 	return ParseUsefulnessResponse(openRouterResp.Choices[0].Message.Content)
+}
+
+func (p *OpenRouterProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalysisRequest) (CombinedAnalysisResponse, error) {
+	prompt := BuildCombinedPrompt(req)
+
+	openRouterReq := openRouterRequest{
+		Model:       p.config.Model,
+		Temperature: 0.2,
+		MaxTokens:   2000,
+		Stream:      false,
+		Messages: []message{
+			{
+				Role:    "system",
+				Content: prompt,
+			},
+			{
+				Role:    "user",
+				Content: req.Text,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(openRouterReq)
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := strings.TrimRight(p.config.BaseURL, "/") + "/chat/completions"
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
+	httpReq.Header.Set("HTTP-Referer", "https://github.com/foxzi/llm-translate")
+	httpReq.Header.Set("X-Title", "LLM Translate CLI")
+
+	resp, err := p.httpClient.Do(httpReq)
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var openRouterResp openRouterResponse
+	if err := json.Unmarshal(body, &openRouterResp); err != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if openRouterResp.Error != nil {
+		return CombinedAnalysisResponse{}, fmt.Errorf("OpenRouter API error: %s", openRouterResp.Error.Message)
+	}
+
+	if len(openRouterResp.Choices) == 0 {
+		return CombinedAnalysisResponse{}, fmt.Errorf("no choices in response")
+	}
+
+	return ParseCombinedResponse(openRouterResp.Choices[0].Message.Content, req), nil
 }
 
 func init() {
