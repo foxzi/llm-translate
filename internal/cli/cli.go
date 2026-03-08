@@ -8,54 +8,55 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/foxzi/llm-translate/internal/config"
+	llmprovider "github.com/foxzi/llm-translate/internal/provider"
+	"github.com/foxzi/llm-translate/internal/translator"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
-	"github.com/foxzi/llm-translate/internal/config"
-	"github.com/foxzi/llm-translate/internal/translator"
 )
 
 var (
 	Version = "dev"
 
-	inputFile        string
-	outputFile       string
-	inputDir         string
-	extensions       string
-	outSuffix        string
-	outPrefix        string
-	sourceLang       string
-	targetLang       string
-	provider         string
-	model            string
-	configPath       string
-	apiKey           string
-	baseURL          string
-	temperature      float64
-	maxTokens        int
-	timeout          int
-	chunkSize        int
-	contextStr       string
-	style            string
-	glossaryFile     string
-	preserveFormat   bool
-	strongMode       bool
-	strongRetries    int
-	verbose          bool
-	quiet            bool
-	dryRun           bool
-	proxyURL         string
-	proxyAuth        string
-	noProxy          bool
-	sentiment        bool
-	tagsCount        int
-	classify         bool
-	emotions         bool
-	factuality       bool
-	impact           bool
-	sensationalism   bool
-	entities         bool
-	events           bool
-	usefulness       bool
+	inputFile      string
+	outputFile     string
+	inputDir       string
+	extensions     string
+	outSuffix      string
+	outPrefix      string
+	sourceLang     string
+	targetLang     string
+	provider       string
+	model          string
+	configPath     string
+	apiKey         string
+	baseURL        string
+	temperature    float64
+	maxTokens      int
+	timeout        int
+	chunkSize      int
+	contextStr     string
+	style          string
+	glossaryFile   string
+	preserveFormat bool
+	strongMode     bool
+	strongRetries  int
+	verbose        bool
+	quiet          bool
+	dryRun         bool
+	proxyURL       string
+	proxyAuth      string
+	noProxy        bool
+	sentiment      bool
+	tagsCount      int
+	classify       bool
+	emotions       bool
+	factuality     bool
+	impact         bool
+	sensationalism bool
+	entities       bool
+	events         bool
+	usefulness     bool
 )
 
 func Execute(ctx context.Context) error {
@@ -64,7 +65,7 @@ func Execute(ctx context.Context) error {
 		Short: "Translate text using LLM APIs",
 		Long:  `A CLI tool for translating text between languages using various LLM providers.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTranslate(ctx)
+			return runTranslate(ctx, cmd)
 		},
 	}
 
@@ -124,13 +125,367 @@ func Execute(ctx context.Context) error {
 	return rootCmd.ExecuteContext(ctx)
 }
 
-func runTranslate(ctx context.Context) error {
+// runAnalysis performs all enabled text analyses, using a single combined LLM
+// call when 2+ analyses are requested, or individual calls for 0-1 analyses.
+// Returns a map of frontmatter key-value updates.
+func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Config, text string, verbose bool) map[string]interface{} {
+	fmUpdates := make(map[string]interface{})
+
+	// Count enabled analyses
+	enabledCount := 0
+	if cfg.Settings.Sentiment {
+		enabledCount++
+	}
+	if cfg.Settings.TagsCount > 0 {
+		enabledCount++
+	}
+	if cfg.Settings.Classify {
+		enabledCount++
+	}
+	if cfg.Settings.Emotions {
+		enabledCount++
+	}
+	if cfg.Settings.Factuality {
+		enabledCount++
+	}
+	if cfg.Settings.Impact {
+		enabledCount++
+	}
+	if cfg.Settings.Sensationalism {
+		enabledCount++
+	}
+	if cfg.Settings.Entities {
+		enabledCount++
+	}
+	if cfg.Settings.Events {
+		enabledCount++
+	}
+	if cfg.Settings.Usefulness {
+		enabledCount++
+	}
+
+	if enabledCount == 0 {
+		return fmUpdates
+	}
+
+	// Use combined analysis when 2+ analyses are enabled
+	if enabledCount >= 2 {
+		if verbose {
+			logInfo("Running combined analysis (%d types)...", enabledCount)
+		}
+		req := llmprovider.CombinedAnalysisRequest{
+			Text:           text,
+			Sentiment:      cfg.Settings.Sentiment,
+			TagsCount:      cfg.Settings.TagsCount,
+			Classify:       cfg.Settings.Classify,
+			Emotions:       cfg.Settings.Emotions,
+			Factuality:     cfg.Settings.Factuality,
+			Impact:         cfg.Settings.Impact,
+			Sensationalism: cfg.Settings.Sensationalism,
+			Usefulness:     cfg.Settings.Usefulness,
+			Entities:       cfg.Settings.Entities,
+			Events:         cfg.Settings.Events,
+		}
+
+		resp, err := t.AnalyzeCombined(ctx, req)
+		if err != nil {
+			if verbose {
+				logWarn("Combined analysis failed, falling back to individual calls: %v", err)
+			}
+			// Fall through to individual calls below
+		} else {
+			// Unpack combined response into fmUpdates
+			mapCombinedResponse(resp, fmUpdates)
+			return fmUpdates
+		}
+	}
+
+	// Individual analysis calls (fallback or single analysis)
+	if cfg.Settings.Sentiment {
+		if verbose {
+			logInfo("Analyzing sentiment...")
+		}
+		sentimentResult, err := t.AnalyzeSentiment(ctx, text)
+		if err != nil {
+			if verbose {
+				logWarn("Sentiment analysis failed: %v", err)
+			}
+		} else {
+			fmUpdates["sentiment"] = sentimentResult.Sentiment
+			fmUpdates["sentiment_score"] = sentimentResult.Score
+		}
+	}
+
+	if cfg.Settings.TagsCount > 0 {
+		if verbose {
+			logInfo("Extracting %d tags...", cfg.Settings.TagsCount)
+		}
+		tagsResult, err := t.ExtractTags(ctx, text, cfg.Settings.TagsCount)
+		if err != nil {
+			if verbose {
+				logWarn("Tags extraction failed: %v", err)
+			}
+		} else {
+			fmUpdates["tags"] = tagsResult.Tags
+		}
+	}
+
+	if cfg.Settings.Classify {
+		if verbose {
+			logInfo("Classifying text...")
+		}
+		classifyResult, err := t.Classify(ctx, text)
+		if err != nil {
+			if verbose {
+				logWarn("Classification failed: %v", err)
+			}
+		} else {
+			if len(classifyResult.Topics) > 0 {
+				fmUpdates["topics"] = classifyResult.Topics
+			}
+			if len(classifyResult.Scope) > 0 {
+				fmUpdates["scope"] = classifyResult.Scope
+			}
+			if len(classifyResult.NewsType) > 0 {
+				fmUpdates["news_type"] = classifyResult.NewsType
+			}
+		}
+	}
+
+	if cfg.Settings.Emotions {
+		if verbose {
+			logInfo("Analyzing emotions...")
+		}
+		emotionsResult, err := t.AnalyzeEmotions(ctx, text)
+		if err != nil {
+			if verbose {
+				logWarn("Emotions analysis failed: %v", err)
+			}
+		} else {
+			if len(emotionsResult.Emotions) > 0 {
+				fmUpdates["emotions"] = emotionsResult.Emotions
+			}
+		}
+	}
+
+	if cfg.Settings.Factuality {
+		if verbose {
+			logInfo("Analyzing factuality...")
+		}
+		factualityResult, err := t.AnalyzeFactuality(ctx, text)
+		if err != nil {
+			if verbose {
+				logWarn("Factuality analysis failed: %v", err)
+			}
+		} else {
+			fmUpdates["factuality"] = factualityResult.Type
+			fmUpdates["factuality_confidence"] = factualityResult.Confidence
+			if len(factualityResult.Evidence) > 0 {
+				fmUpdates["factuality_evidence"] = factualityResult.Evidence
+			}
+		}
+	}
+
+	if cfg.Settings.Impact {
+		if verbose {
+			logInfo("Analyzing impact...")
+		}
+		impactResult, err := t.AnalyzeImpact(ctx, text)
+		if err != nil {
+			if verbose {
+				logWarn("Impact analysis failed: %v", err)
+			}
+		} else {
+			if len(impactResult.Affected) > 0 {
+				fmUpdates["affected"] = impactResult.Affected
+			}
+		}
+	}
+
+	if cfg.Settings.Sensationalism {
+		if verbose {
+			logInfo("Analyzing sensationalism...")
+		}
+		sensResult, err := t.AnalyzeSensationalism(ctx, text)
+		if err != nil {
+			if verbose {
+				logWarn("Sensationalism analysis failed: %v", err)
+			}
+		} else {
+			fmUpdates["sensationalism"] = sensResult.Type
+			fmUpdates["sensationalism_confidence"] = sensResult.Confidence
+			if len(sensResult.Markers) > 0 {
+				fmUpdates["sensationalism_markers"] = sensResult.Markers
+			}
+		}
+	}
+
+	if cfg.Settings.Entities {
+		if verbose {
+			logInfo("Extracting entities...")
+		}
+		entitiesResult, err := t.ExtractEntities(ctx, text)
+		if err != nil {
+			if verbose {
+				logWarn("Entities extraction failed: %v", err)
+			}
+		} else {
+			if len(entitiesResult.Persons) > 0 {
+				fmUpdates["persons"] = entitiesResult.Persons
+			}
+			if len(entitiesResult.Organizations) > 0 {
+				fmUpdates["organizations"] = entitiesResult.Organizations
+			}
+			if len(entitiesResult.Locations) > 0 {
+				fmUpdates["locations"] = entitiesResult.Locations
+			}
+			if len(entitiesResult.Dates) > 0 {
+				fmUpdates["dates"] = entitiesResult.Dates
+			}
+			if len(entitiesResult.Amounts) > 0 {
+				fmUpdates["amounts"] = entitiesResult.Amounts
+			}
+		}
+	}
+
+	if cfg.Settings.Events {
+		if verbose {
+			logInfo("Extracting events...")
+		}
+		eventsResult, err := t.ExtractEvents(ctx, text)
+		if err != nil {
+			if verbose {
+				logWarn("Events extraction failed: %v", err)
+			}
+		} else {
+			if len(eventsResult.Events) > 0 {
+				fmUpdates["events"] = eventsResult.Events
+			}
+		}
+	}
+
+	if cfg.Settings.Usefulness {
+		if verbose {
+			logInfo("Analyzing usefulness...")
+		}
+		usefulnessResult, err := t.AnalyzeUsefulness(ctx, text)
+		if err != nil {
+			if verbose {
+				logWarn("Usefulness analysis failed: %v", err)
+			}
+		} else {
+			fmUpdates["useful_content"] = usefulnessResult.IsUseful
+			fmUpdates["useful_confidence"] = usefulnessResult.Confidence
+			if len(usefulnessResult.Reasons) > 0 {
+				fmUpdates["useful_reasons"] = usefulnessResult.Reasons
+			}
+			if !usefulnessResult.IsUseful {
+				existingTags, _ := fmUpdates["tags"].([]string)
+				if existingTags == nil {
+					existingTags = []string{}
+				}
+				existingTags = append(existingTags, "useless-content")
+				fmUpdates["tags"] = existingTags
+			}
+		}
+	}
+
+	return fmUpdates
+}
+
+// mapCombinedResponse unpacks a CombinedAnalysisResponse into the frontmatter updates map.
+func mapCombinedResponse(resp llmprovider.CombinedAnalysisResponse, fmUpdates map[string]interface{}) {
+	if resp.Sentiment != nil {
+		fmUpdates["sentiment"] = resp.Sentiment.Sentiment
+		fmUpdates["sentiment_score"] = resp.Sentiment.Score
+	}
+
+	if resp.Tags != nil {
+		fmUpdates["tags"] = resp.Tags.Tags
+	}
+
+	if resp.Classify != nil {
+		if len(resp.Classify.Topics) > 0 {
+			fmUpdates["topics"] = resp.Classify.Topics
+		}
+		if len(resp.Classify.Scope) > 0 {
+			fmUpdates["scope"] = resp.Classify.Scope
+		}
+		if len(resp.Classify.NewsType) > 0 {
+			fmUpdates["news_type"] = resp.Classify.NewsType
+		}
+	}
+
+	if resp.Emotions != nil && len(resp.Emotions.Emotions) > 0 {
+		fmUpdates["emotions"] = resp.Emotions.Emotions
+	}
+
+	if resp.Factuality != nil {
+		fmUpdates["factuality"] = resp.Factuality.Type
+		fmUpdates["factuality_confidence"] = resp.Factuality.Confidence
+		if len(resp.Factuality.Evidence) > 0 {
+			fmUpdates["factuality_evidence"] = resp.Factuality.Evidence
+		}
+	}
+
+	if resp.Impact != nil && len(resp.Impact.Affected) > 0 {
+		fmUpdates["affected"] = resp.Impact.Affected
+	}
+
+	if resp.Sensationalism != nil {
+		fmUpdates["sensationalism"] = resp.Sensationalism.Type
+		fmUpdates["sensationalism_confidence"] = resp.Sensationalism.Confidence
+		if len(resp.Sensationalism.Markers) > 0 {
+			fmUpdates["sensationalism_markers"] = resp.Sensationalism.Markers
+		}
+	}
+
+	if resp.Entities != nil {
+		if len(resp.Entities.Persons) > 0 {
+			fmUpdates["persons"] = resp.Entities.Persons
+		}
+		if len(resp.Entities.Organizations) > 0 {
+			fmUpdates["organizations"] = resp.Entities.Organizations
+		}
+		if len(resp.Entities.Locations) > 0 {
+			fmUpdates["locations"] = resp.Entities.Locations
+		}
+		if len(resp.Entities.Dates) > 0 {
+			fmUpdates["dates"] = resp.Entities.Dates
+		}
+		if len(resp.Entities.Amounts) > 0 {
+			fmUpdates["amounts"] = resp.Entities.Amounts
+		}
+	}
+
+	if resp.Events != nil && len(resp.Events.Events) > 0 {
+		fmUpdates["events"] = resp.Events.Events
+	}
+
+	if resp.Usefulness != nil {
+		fmUpdates["useful_content"] = resp.Usefulness.IsUseful
+		fmUpdates["useful_confidence"] = resp.Usefulness.Confidence
+		if len(resp.Usefulness.Reasons) > 0 {
+			fmUpdates["useful_reasons"] = resp.Usefulness.Reasons
+		}
+		if !resp.Usefulness.IsUseful {
+			existingTags, _ := fmUpdates["tags"].([]string)
+			if existingTags == nil {
+				existingTags = []string{}
+			}
+			existingTags = append(existingTags, "useless-content")
+			fmUpdates["tags"] = existingTags
+		}
+	}
+}
+
+func runTranslate(ctx context.Context, cmd *cobra.Command) error {
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	applyCLIOverrides(cfg)
+	applyCLIOverrides(cmd, cfg)
 
 	// Directory mode
 	if inputDir != "" {
@@ -213,198 +568,8 @@ func runTranslate(ctx context.Context) error {
 		return fmt.Errorf("translation failed: %w", err)
 	}
 
-	// Collect frontmatter updates
-	fmUpdates := make(map[string]interface{})
-
-	if cfg.Settings.Sentiment {
-		if verbose {
-			logInfo("Analyzing sentiment...")
-		}
-		sentimentResult, err := t.AnalyzeSentiment(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Sentiment analysis failed: %v", err)
-			}
-		} else {
-			fmUpdates["sentiment"] = sentimentResult.Sentiment
-			fmUpdates["sentiment_score"] = sentimentResult.Score
-		}
-	}
-
-	if cfg.Settings.TagsCount > 0 {
-		if verbose {
-			logInfo("Extracting %d tags...", cfg.Settings.TagsCount)
-		}
-		tagsResult, err := t.ExtractTags(ctx, result.Text, cfg.Settings.TagsCount)
-		if err != nil {
-			if verbose {
-				logWarn("Tags extraction failed: %v", err)
-			}
-		} else {
-			fmUpdates["tags"] = tagsResult.Tags
-		}
-	}
-
-	if cfg.Settings.Classify {
-		if verbose {
-			logInfo("Classifying text...")
-		}
-		classifyResult, err := t.Classify(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Classification failed: %v", err)
-			}
-		} else {
-			if len(classifyResult.Topics) > 0 {
-				fmUpdates["topics"] = classifyResult.Topics
-			}
-			if len(classifyResult.Scope) > 0 {
-				fmUpdates["scope"] = classifyResult.Scope
-			}
-			if len(classifyResult.NewsType) > 0 {
-				fmUpdates["news_type"] = classifyResult.NewsType
-			}
-		}
-	}
-
-	if cfg.Settings.Emotions {
-		if verbose {
-			logInfo("Analyzing emotions...")
-		}
-		emotionsResult, err := t.AnalyzeEmotions(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Emotions analysis failed: %v", err)
-			}
-		} else {
-			if len(emotionsResult.Emotions) > 0 {
-				fmUpdates["emotions"] = emotionsResult.Emotions
-			}
-		}
-	}
-
-	if cfg.Settings.Factuality {
-		if verbose {
-			logInfo("Analyzing factuality...")
-		}
-		factualityResult, err := t.AnalyzeFactuality(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Factuality analysis failed: %v", err)
-			}
-		} else {
-			fmUpdates["factuality"] = factualityResult.Type
-			fmUpdates["factuality_confidence"] = factualityResult.Confidence
-			if len(factualityResult.Evidence) > 0 {
-				fmUpdates["factuality_evidence"] = factualityResult.Evidence
-			}
-		}
-	}
-
-	if cfg.Settings.Impact {
-		if verbose {
-			logInfo("Analyzing impact...")
-		}
-		impactResult, err := t.AnalyzeImpact(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Impact analysis failed: %v", err)
-			}
-		} else {
-			if len(impactResult.Affected) > 0 {
-				fmUpdates["affected"] = impactResult.Affected
-			}
-		}
-	}
-
-	if cfg.Settings.Sensationalism {
-		if verbose {
-			logInfo("Analyzing sensationalism...")
-		}
-		sensResult, err := t.AnalyzeSensationalism(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Sensationalism analysis failed: %v", err)
-			}
-		} else {
-			fmUpdates["sensationalism"] = sensResult.Type
-			fmUpdates["sensationalism_confidence"] = sensResult.Confidence
-			if len(sensResult.Markers) > 0 {
-				fmUpdates["sensationalism_markers"] = sensResult.Markers
-			}
-		}
-	}
-
-	if cfg.Settings.Entities {
-		if verbose {
-			logInfo("Extracting entities...")
-		}
-		entitiesResult, err := t.ExtractEntities(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Entities extraction failed: %v", err)
-			}
-		} else {
-			if len(entitiesResult.Persons) > 0 {
-				fmUpdates["persons"] = entitiesResult.Persons
-			}
-			if len(entitiesResult.Organizations) > 0 {
-				fmUpdates["organizations"] = entitiesResult.Organizations
-			}
-			if len(entitiesResult.Locations) > 0 {
-				fmUpdates["locations"] = entitiesResult.Locations
-			}
-			if len(entitiesResult.Dates) > 0 {
-				fmUpdates["dates"] = entitiesResult.Dates
-			}
-			if len(entitiesResult.Amounts) > 0 {
-				fmUpdates["amounts"] = entitiesResult.Amounts
-			}
-		}
-	}
-
-	if cfg.Settings.Events {
-		if verbose {
-			logInfo("Extracting events...")
-		}
-		eventsResult, err := t.ExtractEvents(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Events extraction failed: %v", err)
-			}
-		} else {
-			if len(eventsResult.Events) > 0 {
-				fmUpdates["events"] = eventsResult.Events
-			}
-		}
-	}
-
-	if cfg.Settings.Usefulness {
-		if verbose {
-			logInfo("Analyzing usefulness...")
-		}
-		usefulnessResult, err := t.AnalyzeUsefulness(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Usefulness analysis failed: %v", err)
-			}
-		} else {
-			fmUpdates["useful_content"] = usefulnessResult.IsUseful
-			fmUpdates["useful_confidence"] = usefulnessResult.Confidence
-			if len(usefulnessResult.Reasons) > 0 {
-				fmUpdates["useful_reasons"] = usefulnessResult.Reasons
-			}
-			if !usefulnessResult.IsUseful {
-				// Add tag for useless content
-				existingTags, _ := fmUpdates["tags"].([]string)
-				if existingTags == nil {
-					existingTags = []string{}
-				}
-				existingTags = append(existingTags, "бесполезный материал")
-				fmUpdates["tags"] = existingTags
-			}
-		}
-	}
+	// Run all enabled analyses (combined or individual)
+	fmUpdates := runAnalysis(ctx, t, cfg, result.Text, verbose)
 
 	// Update frontmatter with analysis results if any
 	if len(fmUpdates) > 0 {
@@ -435,88 +600,92 @@ func runTranslate(ctx context.Context) error {
 	return nil
 }
 
-func applyCLIOverrides(cfg *config.Config) {
-	if targetLang != "" && targetLang != "en" {
+func applyCLIOverrides(cmd *cobra.Command, cfg *config.Config) {
+	changed := func(name string) bool {
+		return cmd.Flags().Changed(name)
+	}
+
+	if changed("to") {
 		cfg.DefaultTargetLanguage = targetLang
 	}
-	
-	if provider != "" {
+
+	if changed("provider") {
 		cfg.DefaultProvider = provider
 	}
-	
-	if temperature != 0.3 {
+
+	if changed("temperature") {
 		cfg.Settings.Temperature = temperature
 	}
-	
-	if maxTokens != 4096 {
+
+	if changed("max-tokens") {
 		cfg.Settings.MaxTokens = maxTokens
 	}
-	
-	if timeout != 60 {
+
+	if changed("timeout") {
 		cfg.Settings.Timeout = timeout
 	}
-	
-	if chunkSize != 3000 {
+
+	if changed("chunk-size") {
 		cfg.Settings.ChunkSize = chunkSize
 	}
-	
-	if preserveFormat {
+
+	if changed("preserve-format") {
 		cfg.Settings.PreserveFormat = preserveFormat
 	}
-	
-	if strongMode {
+
+	if changed("strong") {
 		cfg.StrongValidation.Enabled = strongMode
 	}
-	
-	if strongRetries != 3 {
+
+	if changed("strong-retries") {
 		cfg.StrongValidation.MaxRetries = strongRetries
 	}
-	
-	if proxyURL != "" {
+
+	if changed("proxy") {
 		cfg.Proxy.URL = proxyURL
 	}
-	
-	if noProxy {
+
+	if changed("no-proxy") && noProxy {
 		cfg.Proxy.URL = ""
 	}
 
-	if sentiment {
+	if changed("sentiment") {
 		cfg.Settings.Sentiment = sentiment
 	}
 
-	if tagsCount > 0 {
+	if changed("tags") {
 		cfg.Settings.TagsCount = tagsCount
 	}
 
-	if classify {
+	if changed("classify") {
 		cfg.Settings.Classify = classify
 	}
 
-	if emotions {
+	if changed("emotions") {
 		cfg.Settings.Emotions = emotions
 	}
 
-	if factuality {
+	if changed("factuality") {
 		cfg.Settings.Factuality = factuality
 	}
 
-	if impact {
+	if changed("impact") {
 		cfg.Settings.Impact = impact
 	}
 
-	if sensationalism {
+	if changed("sensationalism") {
 		cfg.Settings.Sensationalism = sensationalism
 	}
 
-	if entities {
+	if changed("entities") {
 		cfg.Settings.Entities = entities
 	}
 
-	if events {
+	if changed("events") {
 		cfg.Settings.Events = events
 	}
 
-	if usefulness {
+	if changed("usefulness") {
 		cfg.Settings.Usefulness = usefulness
 	}
 
@@ -524,19 +693,19 @@ func applyCLIOverrides(cfg *config.Config) {
 	if !ok {
 		providerCfg = config.ProviderConfig{}
 	}
-	
-	if apiKey != "" {
+
+	if changed("api-key") {
 		providerCfg.APIKey = apiKey
 	}
-	
-	if baseURL != "" {
+
+	if changed("base-url") {
 		providerCfg.BaseURL = baseURL
 	}
-	
-	if model != "" {
+
+	if changed("model") {
 		providerCfg.Model = model
 	}
-	
+
 	cfg.Providers[cfg.DefaultProvider] = providerCfg
 }
 
@@ -552,15 +721,15 @@ func loadGlossary(path string) ([]config.GlossaryEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var glossaryFile struct {
 		Terms []config.GlossaryEntry `yaml:"terms"`
 	}
-	
+
 	if err := yaml.Unmarshal(data, &glossaryFile); err != nil {
 		return nil, err
 	}
-	
+
 	return glossaryFile.Terms, nil
 }
 
@@ -839,167 +1008,8 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 		return err
 	}
 
-	// Collect frontmatter updates
-	fmUpdates := make(map[string]interface{})
-
-	if cfg.Settings.Sentiment {
-		sentimentResult, err := t.AnalyzeSentiment(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Sentiment analysis failed: %v", err)
-			}
-		} else {
-			fmUpdates["sentiment"] = sentimentResult.Sentiment
-			fmUpdates["sentiment_score"] = sentimentResult.Score
-		}
-	}
-
-	if cfg.Settings.TagsCount > 0 {
-		tagsResult, err := t.ExtractTags(ctx, result.Text, cfg.Settings.TagsCount)
-		if err != nil {
-			if verbose {
-				logWarn("Tags extraction failed: %v", err)
-			}
-		} else {
-			fmUpdates["tags"] = tagsResult.Tags
-		}
-	}
-
-	if cfg.Settings.Classify {
-		classifyResult, err := t.Classify(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Classification failed: %v", err)
-			}
-		} else {
-			if len(classifyResult.Topics) > 0 {
-				fmUpdates["topics"] = classifyResult.Topics
-			}
-			if len(classifyResult.Scope) > 0 {
-				fmUpdates["scope"] = classifyResult.Scope
-			}
-			if len(classifyResult.NewsType) > 0 {
-				fmUpdates["news_type"] = classifyResult.NewsType
-			}
-		}
-	}
-
-	if cfg.Settings.Emotions {
-		emotionsResult, err := t.AnalyzeEmotions(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Emotions analysis failed: %v", err)
-			}
-		} else {
-			if len(emotionsResult.Emotions) > 0 {
-				fmUpdates["emotions"] = emotionsResult.Emotions
-			}
-		}
-	}
-
-	if cfg.Settings.Factuality {
-		factualityResult, err := t.AnalyzeFactuality(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Factuality analysis failed: %v", err)
-			}
-		} else {
-			fmUpdates["factuality"] = factualityResult.Type
-			fmUpdates["factuality_confidence"] = factualityResult.Confidence
-			if len(factualityResult.Evidence) > 0 {
-				fmUpdates["factuality_evidence"] = factualityResult.Evidence
-			}
-		}
-	}
-
-	if cfg.Settings.Impact {
-		impactResult, err := t.AnalyzeImpact(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Impact analysis failed: %v", err)
-			}
-		} else {
-			if len(impactResult.Affected) > 0 {
-				fmUpdates["affected"] = impactResult.Affected
-			}
-		}
-	}
-
-	if cfg.Settings.Sensationalism {
-		sensResult, err := t.AnalyzeSensationalism(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Sensationalism analysis failed: %v", err)
-			}
-		} else {
-			fmUpdates["sensationalism"] = sensResult.Type
-			fmUpdates["sensationalism_confidence"] = sensResult.Confidence
-			if len(sensResult.Markers) > 0 {
-				fmUpdates["sensationalism_markers"] = sensResult.Markers
-			}
-		}
-	}
-
-	if cfg.Settings.Entities {
-		entitiesResult, err := t.ExtractEntities(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Entities extraction failed: %v", err)
-			}
-		} else {
-			if len(entitiesResult.Persons) > 0 {
-				fmUpdates["persons"] = entitiesResult.Persons
-			}
-			if len(entitiesResult.Organizations) > 0 {
-				fmUpdates["organizations"] = entitiesResult.Organizations
-			}
-			if len(entitiesResult.Locations) > 0 {
-				fmUpdates["locations"] = entitiesResult.Locations
-			}
-			if len(entitiesResult.Dates) > 0 {
-				fmUpdates["dates"] = entitiesResult.Dates
-			}
-			if len(entitiesResult.Amounts) > 0 {
-				fmUpdates["amounts"] = entitiesResult.Amounts
-			}
-		}
-	}
-
-	if cfg.Settings.Events {
-		eventsResult, err := t.ExtractEvents(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Events extraction failed: %v", err)
-			}
-		} else {
-			if len(eventsResult.Events) > 0 {
-				fmUpdates["events"] = eventsResult.Events
-			}
-		}
-	}
-
-	if cfg.Settings.Usefulness {
-		usefulnessResult, err := t.AnalyzeUsefulness(ctx, result.Text)
-		if err != nil {
-			if verbose {
-				logWarn("Usefulness analysis failed: %v", err)
-			}
-		} else {
-			fmUpdates["useful_content"] = usefulnessResult.IsUseful
-			fmUpdates["useful_confidence"] = usefulnessResult.Confidence
-			if len(usefulnessResult.Reasons) > 0 {
-				fmUpdates["useful_reasons"] = usefulnessResult.Reasons
-			}
-			if !usefulnessResult.IsUseful {
-				existingTags, _ := fmUpdates["tags"].([]string)
-				if existingTags == nil {
-					existingTags = []string{}
-				}
-				existingTags = append(existingTags, "бесполезный материал")
-				fmUpdates["tags"] = existingTags
-			}
-		}
-	}
+	// Run all enabled analyses (combined or individual)
+	fmUpdates := runAnalysis(ctx, t, cfg, result.Text, verbose)
 
 	// Update frontmatter with analysis results if any
 	if len(fmUpdates) > 0 {
