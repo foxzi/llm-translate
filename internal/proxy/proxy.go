@@ -14,10 +14,15 @@ import (
 	"golang.org/x/net/proxy"
 )
 
-func NewHTTPClient(cfg config.ProxyConfig) (*http.Client, error) {
+func NewHTTPClient(cfg config.ProxyConfig, timeoutSeconds ...int) (*http.Client, error) {
+	timeout := 60 * time.Second
+	if len(timeoutSeconds) > 0 && timeoutSeconds[0] > 0 {
+		timeout = time.Duration(timeoutSeconds[0]) * time.Second
+	}
+
 	if cfg.URL == "" {
 		return &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: timeout,
 		}, nil
 	}
 
@@ -80,7 +85,7 @@ func NewHTTPClient(cfg config.ProxyConfig) (*http.Client, error) {
 
 	return &http.Client{
 		Transport: transport,
-		Timeout:   60 * time.Second,
+		Timeout:   timeout,
 	}, nil
 }
 
@@ -103,8 +108,8 @@ func shouldBypassProxy(host string, noProxyList []string) bool {
 		}
 
 		if strings.HasPrefix(pattern, "*.") {
-			domain := pattern[2:]
-			if strings.HasSuffix(host, domain) {
+			domain := pattern[1:] // keep the dot: ".example.com"
+			if host == domain[1:] || strings.HasSuffix(host, domain) {
 				return true
 			}
 		}
