@@ -134,11 +134,10 @@ func DefaultConfig() *Config {
 }
 
 func ExpandEnvVars(s string) string {
-	if strings.HasPrefix(s, "${") && strings.HasSuffix(s, "}") {
-		envVar := s[2 : len(s)-1]
-		return os.Getenv(envVar)
+	if !strings.Contains(s, "${") {
+		return s
 	}
-	return s
+	return os.ExpandEnv(s)
 }
 
 func GetConfigPaths() []string {
