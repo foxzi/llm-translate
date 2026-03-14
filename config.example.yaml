@@ -17,9 +17,18 @@ settings:
   retry_count: 3
   retry_delay: 1
 
-  # Text analysis (added to end of output)
+  # Text analysis (results added to frontmatter)
   sentiment: false       # Analyze sentiment of translated text
   tags_count: 0          # Extract N tags from text (0 = disabled)
+  classify: false        # Classify by topics, scope, news type
+  emotions: false        # Detect emotions (fear, anger, hope, uncertainty, optimism, panic)
+  factuality: false      # Check factuality (confirmed, rumors, forecasts, unsourced)
+  impact: false          # Who is affected (individuals, business, government, investors, consumers)
+  sensationalism: false  # Sensationalism level (neutral, emotional, clickbait, manipulative)
+  entities: false        # Extract named entities (persons, organizations, locations, dates, amounts)
+  events: false          # Extract key events mentioned in text
+  usefulness: false      # Detect useless/spam content (advertising, empty announcements)
+  time_focus: false      # Analyze temporal focus (past/present/future) and detect predictions
 
 # Strong validation settings (--strong mode)
 strong_validation:

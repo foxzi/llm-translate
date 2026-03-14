@@ -13,7 +13,7 @@ A powerful command-line tool for translating text between languages using variou
 - **Proxy Support**: HTTP, HTTPS, and SOCKS5 proxy configuration
 - **Retry Logic**: Automatic retries with exponential backoff
 - **Configurable**: YAML configuration files with environment variable support
-- **Text Analysis**: Sentiment analysis, emotion detection, topic classification, tag extraction, named entity recognition (NER), and event extraction
+- **Text Analysis**: Sentiment analysis, emotion detection, topic classification, tag extraction, named entity recognition (NER), event extraction, usefulness detection, and temporal focus analysis
 
 ## Installation
 
@@ -95,6 +95,8 @@ settings:
   sensationalism: false     # Sensationalism level (neutral, emotional, clickbait, manipulative)
   entities: false           # Extract named entities (persons, organizations, locations, dates, amounts)
   events: false             # Extract key events mentioned in text
+  usefulness: false         # Detect useless/spam content (advertising, empty announcements, etc.)
+  time_focus: false         # Analyze temporal focus (past/present/future) and detect predictions
 
 providers:
   openai:
@@ -197,6 +199,8 @@ proxy:
 | `--sensationalism` | | Analyze sensationalism level (neutral, emotional, clickbait, manipulative) | false |
 | `--entities` | | Extract named entities (persons, organizations, locations, dates, amounts) | false |
 | `--events` | | Extract key events from text | false |
+| `--usefulness` | | Detect useless/spam content (advertising, empty announcements) | false |
+| `--time-focus` | | Analyze temporal focus (past/present/future) and detect predictions | false |
 | `--verbose` | | Verbose output | false |
 | `--version` | `-v` | Show version | - |
 | `--quiet` | `-q` | Quiet mode | false |
@@ -298,9 +302,16 @@ llm-translate -i article.txt -o article_ru.txt -t ru --entities
 # Extract key events from text
 llm-translate -i article.txt -o article_ru.txt -t ru --events
 
+# Detect useless/spam content
+llm-translate -i article.txt -o article_ru.txt -t ru --usefulness
+
+# Analyze temporal focus and detect predictions
+llm-translate -i article.txt -o article_ru.txt -t ru --time-focus
+
 # Full analysis - combine all
 llm-translate -i article.txt -o article_ru.txt -t ru \
-  --sentiment --tags 5 --classify --emotions --factuality --impact --sensationalism --entities --events
+  --sentiment --tags 5 --classify --emotions --factuality --impact \
+  --sensationalism --entities --events --usefulness --time-focus
 ```
 
 Output frontmatter example:
@@ -358,6 +369,18 @@ amounts:
 events:
   - Apple announced new iPhone regulations compliance
   - European Commission approved merger deal
+useful_content: true
+useful_confidence: 0.85
+useful_reasons:
+  - factual_information
+  - contains_analysis
+time_focus: present
+time_focus_confidence: 0.8
+is_prediction: false
+time_indicators:
+  - announced
+  - approved
+  - this week
 ---
 ```
 
@@ -394,6 +417,17 @@ events:
 **Events extraction:**
 - Key events mentioned in the text as structured list
 
+**Usefulness detection:**
+- **useful**: contains factual information, analysis, new insights, verifiable data
+- **useless**: advertising, sponsored content, empty announcements, clickbait with no substance, auto-generated content
+
+**Time focus analysis:**
+- **past**: describes events that already happened, historical analysis, retrospective
+- **present**: describes current situation, ongoing events, breaking news
+- **future**: describes predictions, forecasts, expectations, planned events
+- **mixed**: contains significant elements of multiple time frames
+- **is_prediction**: true only when text contains explicit predictions, forecasts, or speculations about future outcomes (not for scheduled events or confirmed plans)
+
 Configuration in YAML:
 
 ```yaml
@@ -407,6 +441,8 @@ settings:
   sensationalism: true
   entities: true
   events: true
+  usefulness: true
+  time_focus: true
 ```
 
 ### Proxy Configuration
