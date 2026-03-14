@@ -22,8 +22,6 @@ contents:
 
 overrides:
   deb:
-    depends:
-      - libc6
+    depends: []
   rpm:
-    depends:
-      - glibc
+    depends: []
