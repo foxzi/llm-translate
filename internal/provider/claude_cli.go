@@ -216,6 +216,15 @@ func (p *ClaudeCLIProvider) AnalyzeUsefulness(ctx context.Context, text string) 
 	return ParseUsefulnessResponse(result)
 }
 
+func (p *ClaudeCLIProvider) AnalyzeTimeFocus(ctx context.Context, text string) (TimeFocusResponse, error) {
+	result, err := p.runCLI(ctx, TimeFocusPrompt, text)
+	if err != nil {
+		return TimeFocusResponse{}, err
+	}
+
+	return ParseTimeFocusResponse(result)
+}
+
 func (p *ClaudeCLIProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalysisRequest) (CombinedAnalysisResponse, error) {
 	prompt := BuildCombinedPrompt(req)
 

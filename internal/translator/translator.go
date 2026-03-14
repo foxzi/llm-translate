@@ -254,6 +254,13 @@ func (t *Translator) AnalyzeUsefulness(ctx context.Context, text string) (provid
 	return t.provider.AnalyzeUsefulness(ctx, text)
 }
 
+func (t *Translator) AnalyzeTimeFocus(ctx context.Context, text string) (provider.TimeFocusResponse, error) {
+	if err := t.ensureProvider(); err != nil {
+		return provider.TimeFocusResponse{}, err
+	}
+	return t.provider.AnalyzeTimeFocus(ctx, text)
+}
+
 func (t *Translator) AnalyzeCombined(ctx context.Context, req provider.CombinedAnalysisRequest) (provider.CombinedAnalysisResponse, error) {
 	if err := t.ensureProvider(); err != nil {
 		return provider.CombinedAnalysisResponse{}, err

@@ -311,6 +311,18 @@ func (p *QwenCLIProvider) AnalyzeUsefulness(ctx context.Context, text string) (U
 	return ParseUsefulnessResponse(result)
 }
 
+func (p *QwenCLIProvider) AnalyzeTimeFocus(ctx context.Context, text string) (TimeFocusResponse, error) {
+	result, _, err := p.runCLIJSON(ctx, TimeFocusPrompt, text)
+	if err != nil {
+		result, err = p.runCLI(ctx, TimeFocusPrompt, text)
+		if err != nil {
+			return TimeFocusResponse{}, err
+		}
+	}
+
+	return ParseTimeFocusResponse(result)
+}
+
 func (p *QwenCLIProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalysisRequest) (CombinedAnalysisResponse, error) {
 	prompt := BuildCombinedPrompt(req)
 

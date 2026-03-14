@@ -7,34 +7,35 @@ import (
 )
 
 type Config struct {
-	DefaultProvider        string                     `yaml:"default_provider"`
-	DefaultTargetLanguage  string                     `yaml:"default_target_language"`
-	Settings              Settings                   `yaml:"settings"`
-	StrongValidation      StrongValidation           `yaml:"strong_validation"`
-	Proxy                 ProxyConfig                `yaml:"proxy"`
-	Providers             map[string]ProviderConfig  `yaml:"providers"`
-	Prompts               Prompts                    `yaml:"prompts"`
-	Glossary              []GlossaryEntry            `yaml:"glossary"`
+	DefaultProvider       string                    `yaml:"default_provider"`
+	DefaultTargetLanguage string                    `yaml:"default_target_language"`
+	Settings              Settings                  `yaml:"settings"`
+	StrongValidation      StrongValidation          `yaml:"strong_validation"`
+	Proxy                 ProxyConfig               `yaml:"proxy"`
+	Providers             map[string]ProviderConfig `yaml:"providers"`
+	Prompts               Prompts                   `yaml:"prompts"`
+	Glossary              []GlossaryEntry           `yaml:"glossary"`
 }
 
 type Settings struct {
-	Temperature     float64 `yaml:"temperature"`
-	MaxTokens       int     `yaml:"max_tokens"`
-	Timeout         int     `yaml:"timeout"`
-	ChunkSize       int     `yaml:"chunk_size"`
-	PreserveFormat  bool    `yaml:"preserve_format"`
-	RetryCount      int     `yaml:"retry_count"`
-	RetryDelay      int     `yaml:"retry_delay"`
-	Sentiment       bool    `yaml:"sentiment"`
-	TagsCount       int     `yaml:"tags_count"`
-	Classify        bool    `yaml:"classify"`
-	Emotions        bool    `yaml:"emotions"`
-	Factuality      bool    `yaml:"factuality"`
-	Impact          bool    `yaml:"impact"`
-	Sensationalism  bool    `yaml:"sensationalism"`
-	Entities        bool    `yaml:"entities"`
-	Events          bool    `yaml:"events"`
-	Usefulness      bool    `yaml:"usefulness"`
+	Temperature    float64 `yaml:"temperature"`
+	MaxTokens      int     `yaml:"max_tokens"`
+	Timeout        int     `yaml:"timeout"`
+	ChunkSize      int     `yaml:"chunk_size"`
+	PreserveFormat bool    `yaml:"preserve_format"`
+	RetryCount     int     `yaml:"retry_count"`
+	RetryDelay     int     `yaml:"retry_delay"`
+	Sentiment      bool    `yaml:"sentiment"`
+	TagsCount      int     `yaml:"tags_count"`
+	Classify       bool    `yaml:"classify"`
+	Emotions       bool    `yaml:"emotions"`
+	Factuality     bool    `yaml:"factuality"`
+	Impact         bool    `yaml:"impact"`
+	Sensationalism bool    `yaml:"sensationalism"`
+	Entities       bool    `yaml:"entities"`
+	Events         bool    `yaml:"events"`
+	Usefulness     bool    `yaml:"usefulness"`
+	TimeFocus      bool    `yaml:"time_focus"`
 }
 
 type StrongValidation struct {
@@ -52,10 +53,10 @@ type ProxyConfig struct {
 }
 
 type ProviderConfig struct {
-	APIKey   string      `yaml:"api_key"`
-	BaseURL  string      `yaml:"base_url"`
-	Model    string      `yaml:"model"`
-	Proxy    ProxyConfig `yaml:"proxy"`
+	APIKey  string      `yaml:"api_key"`
+	BaseURL string      `yaml:"base_url"`
+	Model   string      `yaml:"model"`
+	Proxy   ProxyConfig `yaml:"proxy"`
 }
 
 type Prompts struct {
@@ -64,13 +65,13 @@ type Prompts struct {
 }
 
 type GlossaryEntry struct {
-	Term         string `yaml:"term"`
-	Source       string `yaml:"source"`
-	Target       string `yaml:"target"`
-	Translation  string `yaml:"translation"`
-	Note         string `yaml:"note"`
+	Term          string `yaml:"term"`
+	Source        string `yaml:"source"`
+	Target        string `yaml:"target"`
+	Translation   string `yaml:"translation"`
+	Note          string `yaml:"note"`
 	CaseSensitive bool   `yaml:"case_sensitive"`
-	Context      string `yaml:"context"`
+	Context       string `yaml:"context"`
 }
 
 func DefaultConfig() *Config {
@@ -95,6 +96,7 @@ func DefaultConfig() *Config {
 			Entities:       false,
 			Events:         false,
 			Usefulness:     false,
+			TimeFocus:      false,
 		},
 		StrongValidation: StrongValidation{
 			Enabled:    false,

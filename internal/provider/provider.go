@@ -11,6 +11,32 @@ import (
 	"github.com/foxzi/llm-translate/internal/config"
 )
 
+const TimeFocusPrompt = `Analyze the temporal focus of the following news text. Determine whether it describes past events, present situation, or future predictions/forecasts. Respond ONLY in this exact format:
+TIME_FOCUS: <past|present|future|mixed> (<confidence 0.0-1.0>)
+IS_PREDICTION: <true|false>
+INDICATORS: <comma-separated list of temporal indicators found>
+
+Rules:
+- past: describes events that already happened, historical analysis, retrospective
+- present: describes current situation, ongoing events, breaking news
+- future: describes predictions, forecasts, expectations, planned events
+- mixed: contains significant elements of multiple time frames
+- IS_PREDICTION is true ONLY when text contains explicit predictions, forecasts, or speculations about future outcomes
+- IS_PREDICTION is false for scheduled events, announcements, or plans already confirmed
+- INDICATORS: extract temporal markers from text (e.g. "yesterday", "will", "expected to", "last year", "next quarter")
+- Round confidence to 1 decimal place
+
+Example responses:
+TIME_FOCUS: future (0.8)
+IS_PREDICTION: true
+INDICATORS: expected to, forecast, will likely, next quarter
+
+TIME_FOCUS: past (0.9)
+IS_PREDICTION: false
+INDICATORS: last week, announced, reported, was
+
+Text to analyze:`
+
 const SentimentPrompt = `Analyze the sentiment of the following text. Respond ONLY with a single line in format:
 SENTIMENT: <positive|negative|neutral> (<score from -1.0 to 1.0>)
 
@@ -298,6 +324,16 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 		sections = append(sections, "")
 	}
 
+	if req.TimeFocus {
+		sections = append(sections, "=== TIME FOCUS ===")
+		sections = append(sections, "TIME_FOCUS: <past|present|future|mixed> (<confidence 0.0-1.0>)")
+		sections = append(sections, "IS_PREDICTION: <true|false>")
+		sections = append(sections, "INDICATORS: <comma-separated temporal indicators>")
+		sections = append(sections, "Rules: past=already happened, present=current/ongoing, future=predictions/forecasts, mixed=multiple timeframes.")
+		sections = append(sections, "IS_PREDICTION=true only for explicit predictions/forecasts/speculations about future outcomes.")
+		sections = append(sections, "")
+	}
+
 	sections = append(sections, "Text to analyze:")
 
 	return strings.Join(sections, "\n")
@@ -366,6 +402,12 @@ func ParseCombinedResponse(response string, req CombinedAnalysisRequest) Combine
 		}
 	}
 
+	if req.TimeFocus {
+		if tf, err := ParseTimeFocusResponse(response); err == nil {
+			result.TimeFocus = &tf
+		}
+	}
+
 	return result
 }
 
@@ -382,6 +424,7 @@ type Provider interface {
 	AnalyzeUsefulness(ctx context.Context, text string) (UsefulnessResponse, error)
 	ExtractEntities(ctx context.Context, text string) (EntitiesResponse, error)
 	ExtractEvents(ctx context.Context, text string) (EventsResponse, error)
+	AnalyzeTimeFocus(ctx context.Context, text string) (TimeFocusResponse, error)
 	AnalyzeCombined(ctx context.Context, req CombinedAnalysisRequest) (CombinedAnalysisResponse, error)
 	ValidateConfig() error
 }
@@ -398,6 +441,7 @@ type CombinedAnalysisRequest struct {
 	Usefulness     bool
 	Entities       bool
 	Events         bool
+	TimeFocus      bool
 }
 
 type CombinedAnalysisResponse struct {
@@ -411,6 +455,7 @@ type CombinedAnalysisResponse struct {
 	Usefulness     *UsefulnessResponse
 	Entities       *EntitiesResponse
 	Events         *EventsResponse
+	TimeFocus      *TimeFocusResponse
 }
 
 type TranslateRequest struct {
@@ -483,6 +528,13 @@ type UsefulnessResponse struct {
 	IsUseful   bool     // true if useful, false if useless
 	Confidence float64  // 0.0-1.0
 	Reasons    []string // reasons for the decision
+}
+
+type TimeFocusResponse struct {
+	Focus        string   // past, present, future, mixed
+	Confidence   float64  // 0.0-1.0
+	IsPrediction bool     // true if text contains predictions/forecasts
+	Indicators   []string // temporal indicators found in text
 }
 
 type BaseProvider struct {
@@ -920,6 +972,36 @@ func ParseUsefulnessResponse(response string) (UsefulnessResponse, error) {
 	reasonsRe := regexp.MustCompile(`(?i)REASONS:\s*(.+)`)
 	if matches := reasonsRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.Reasons = parseCommaSeparated(matches[1])
+	}
+
+	return result, nil
+}
+
+func ParseTimeFocusResponse(response string) (TimeFocusResponse, error) {
+	response = strings.TrimSpace(response)
+	result := TimeFocusResponse{}
+
+	// Parse TIME_FOCUS line
+	focusRe := regexp.MustCompile(`(?i)TIME_FOCUS:\s*(past|present|future|mixed)\s*\(([0-9.]+)\)`)
+	if matches := focusRe.FindStringSubmatch(response); len(matches) >= 3 {
+		result.Focus = strings.ToLower(matches[1])
+		if score, err := strconv.ParseFloat(matches[2], 64); err == nil {
+			result.Confidence = score
+		}
+	} else {
+		return TimeFocusResponse{}, fmt.Errorf("invalid time focus response format: %s", response)
+	}
+
+	// Parse IS_PREDICTION line
+	predRe := regexp.MustCompile(`(?i)IS_PREDICTION:\s*(true|false)`)
+	if matches := predRe.FindStringSubmatch(response); len(matches) >= 2 {
+		result.IsPrediction = strings.ToLower(matches[1]) == "true"
+	}
+
+	// Parse INDICATORS line
+	indRe := regexp.MustCompile(`(?i)INDICATORS:\s*(.+)`)
+	if matches := indRe.FindStringSubmatch(response); len(matches) >= 2 {
+		result.Indicators = parseCommaSeparated(matches[1])
 	}
 
 	return result, nil

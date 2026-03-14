@@ -57,6 +57,7 @@ var (
 	entities       bool
 	events         bool
 	usefulness     bool
+	timeFocus      bool
 )
 
 func Execute(ctx context.Context) error {
@@ -108,6 +109,7 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().BoolVar(&entities, "entities", false, "Extract named entities (persons, organizations, locations, dates, amounts)")
 	rootCmd.Flags().BoolVar(&events, "events", false, "Extract key events from text")
 	rootCmd.Flags().BoolVar(&usefulness, "usefulness", false, "Analyze content usefulness (detect useless/spam content)")
+	rootCmd.Flags().BoolVar(&timeFocus, "time-focus", false, "Analyze temporal focus (past/present/future) and detect predictions")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 
 	rootCmd.Version = Version
@@ -163,6 +165,9 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 	if cfg.Settings.Usefulness {
 		enabledCount++
 	}
+	if cfg.Settings.TimeFocus {
+		enabledCount++
+	}
 
 	if enabledCount == 0 {
 		return fmUpdates
@@ -185,6 +190,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 			Usefulness:     cfg.Settings.Usefulness,
 			Entities:       cfg.Settings.Entities,
 			Events:         cfg.Settings.Events,
+			TimeFocus:      cfg.Settings.TimeFocus,
 		}
 
 		resp, err := t.AnalyzeCombined(ctx, req)
@@ -390,6 +396,25 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 	}
 
+	if cfg.Settings.TimeFocus {
+		if verbose {
+			logInfo("Analyzing time focus...")
+		}
+		timeFocusResult, err := t.AnalyzeTimeFocus(ctx, text)
+		if err != nil {
+			if verbose {
+				logWarn("Time focus analysis failed: %v", err)
+			}
+		} else {
+			fmUpdates["time_focus"] = timeFocusResult.Focus
+			fmUpdates["time_focus_confidence"] = timeFocusResult.Confidence
+			fmUpdates["is_prediction"] = timeFocusResult.IsPrediction
+			if len(timeFocusResult.Indicators) > 0 {
+				fmUpdates["time_indicators"] = timeFocusResult.Indicators
+			}
+		}
+	}
+
 	return fmUpdates
 }
 
@@ -475,6 +500,15 @@ func mapCombinedResponse(resp llmprovider.CombinedAnalysisResponse, fmUpdates ma
 			}
 			existingTags = append(existingTags, "useless-content")
 			fmUpdates["tags"] = existingTags
+		}
+	}
+
+	if resp.TimeFocus != nil {
+		fmUpdates["time_focus"] = resp.TimeFocus.Focus
+		fmUpdates["time_focus_confidence"] = resp.TimeFocus.Confidence
+		fmUpdates["is_prediction"] = resp.TimeFocus.IsPrediction
+		if len(resp.TimeFocus.Indicators) > 0 {
+			fmUpdates["time_indicators"] = resp.TimeFocus.Indicators
 		}
 	}
 }
@@ -687,6 +721,10 @@ func applyCLIOverrides(cmd *cobra.Command, cfg *config.Config) {
 
 	if changed("usefulness") {
 		cfg.Settings.Usefulness = usefulness
+	}
+
+	if changed("time-focus") {
+		cfg.Settings.TimeFocus = timeFocus
 	}
 
 	providerCfg, ok := cfg.Providers[cfg.DefaultProvider]
