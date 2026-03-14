@@ -311,6 +311,18 @@ func (p *QwenCLIProvider) AnalyzeUsefulness(ctx context.Context, text string) (U
 	return ParseUsefulnessResponse(result)
 }
 
+func (p *QwenCLIProvider) AnalyzeAdDetect(ctx context.Context, text string) (AdDetectResponse, error) {
+	result, _, err := p.runCLIJSON(ctx, AdDetectPrompt, text)
+	if err != nil {
+		result, err = p.runCLI(ctx, AdDetectPrompt, text)
+		if err != nil {
+			return AdDetectResponse{}, err
+		}
+	}
+
+	return ParseAdDetectResponse(result)
+}
+
 func (p *QwenCLIProvider) AnalyzeTimeFocus(ctx context.Context, text string) (TimeFocusResponse, error) {
 	result, _, err := p.runCLIJSON(ctx, TimeFocusPrompt, text)
 	if err != nil {

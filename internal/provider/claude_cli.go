@@ -216,6 +216,15 @@ func (p *ClaudeCLIProvider) AnalyzeUsefulness(ctx context.Context, text string) 
 	return ParseUsefulnessResponse(result)
 }
 
+func (p *ClaudeCLIProvider) AnalyzeAdDetect(ctx context.Context, text string) (AdDetectResponse, error) {
+	result, err := p.runCLI(ctx, AdDetectPrompt, text)
+	if err != nil {
+		return AdDetectResponse{}, err
+	}
+
+	return ParseAdDetectResponse(result)
+}
+
 func (p *ClaudeCLIProvider) AnalyzeTimeFocus(ctx context.Context, text string) (TimeFocusResponse, error) {
 	result, err := p.runCLI(ctx, TimeFocusPrompt, text)
 	if err != nil {

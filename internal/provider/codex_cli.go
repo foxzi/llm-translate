@@ -307,6 +307,20 @@ func (p *CodexCLIProvider) AnalyzeUsefulness(ctx context.Context, text string) (
 	return ParseUsefulnessResponse(result)
 }
 
+func (p *CodexCLIProvider) AnalyzeAdDetect(ctx context.Context, text string) (AdDetectResponse, error) {
+	prompt := AdDetectPrompt + "\n\n" + text
+
+	result, _, err := p.runCLIJSON(ctx, prompt)
+	if err != nil {
+		result, err = p.runCLI(ctx, prompt)
+		if err != nil {
+			return AdDetectResponse{}, err
+		}
+	}
+
+	return ParseAdDetectResponse(result)
+}
+
 func (p *CodexCLIProvider) AnalyzeTimeFocus(ctx context.Context, text string) (TimeFocusResponse, error) {
 	prompt := TimeFocusPrompt + "\n\n" + text
 

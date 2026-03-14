@@ -36,6 +36,7 @@ type Settings struct {
 	Events         bool    `yaml:"events"`
 	Usefulness     bool    `yaml:"usefulness"`
 	TimeFocus      bool    `yaml:"time_focus"`
+	AdDetect       bool    `yaml:"ad_detect"`
 }
 
 type StrongValidation struct {
@@ -97,6 +98,7 @@ func DefaultConfig() *Config {
 			Events:         false,
 			Usefulness:     false,
 			TimeFocus:      false,
+			AdDetect:       false,
 		},
 		StrongValidation: StrongValidation{
 			Enabled:    false,

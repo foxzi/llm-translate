@@ -58,6 +58,7 @@ var (
 	events         bool
 	usefulness     bool
 	timeFocus      bool
+	adDetect       bool
 )
 
 func Execute(ctx context.Context) error {
@@ -110,6 +111,7 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().BoolVar(&events, "events", false, "Extract key events from text")
 	rootCmd.Flags().BoolVar(&usefulness, "usefulness", false, "Analyze content usefulness (detect useless/spam content)")
 	rootCmd.Flags().BoolVar(&timeFocus, "time-focus", false, "Analyze temporal focus (past/present/future) and detect predictions")
+	rootCmd.Flags().BoolVar(&adDetect, "ad-detect", false, "Detect advertising content (direct, native, sponsored, PR)")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 
 	rootCmd.Version = Version
@@ -168,6 +170,9 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 	if cfg.Settings.TimeFocus {
 		enabledCount++
 	}
+	if cfg.Settings.AdDetect {
+		enabledCount++
+	}
 
 	if enabledCount == 0 {
 		return fmUpdates
@@ -191,6 +196,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 			Entities:       cfg.Settings.Entities,
 			Events:         cfg.Settings.Events,
 			TimeFocus:      cfg.Settings.TimeFocus,
+			AdDetect:       cfg.Settings.AdDetect,
 		}
 
 		resp, err := t.AnalyzeCombined(ctx, req)
@@ -415,6 +421,24 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 	}
 
+	if cfg.Settings.AdDetect {
+		if verbose {
+			logInfo("Detecting advertising content...")
+		}
+		adResult, err := t.AnalyzeAdDetect(ctx, text)
+		if err != nil {
+			if verbose {
+				logWarn("Ad detection failed: %v", err)
+			}
+		} else {
+			fmUpdates["ad_type"] = adResult.AdType
+			fmUpdates["ad_confidence"] = adResult.Confidence
+			if len(adResult.Markers) > 0 {
+				fmUpdates["ad_markers"] = adResult.Markers
+			}
+		}
+	}
+
 	return fmUpdates
 }
 
@@ -509,6 +533,14 @@ func mapCombinedResponse(resp llmprovider.CombinedAnalysisResponse, fmUpdates ma
 		fmUpdates["is_prediction"] = resp.TimeFocus.IsPrediction
 		if len(resp.TimeFocus.Indicators) > 0 {
 			fmUpdates["time_indicators"] = resp.TimeFocus.Indicators
+		}
+	}
+
+	if resp.AdDetect != nil {
+		fmUpdates["ad_type"] = resp.AdDetect.AdType
+		fmUpdates["ad_confidence"] = resp.AdDetect.Confidence
+		if len(resp.AdDetect.Markers) > 0 {
+			fmUpdates["ad_markers"] = resp.AdDetect.Markers
 		}
 	}
 }
@@ -725,6 +757,10 @@ func applyCLIOverrides(cmd *cobra.Command, cfg *config.Config) {
 
 	if changed("time-focus") {
 		cfg.Settings.TimeFocus = timeFocus
+	}
+
+	if changed("ad-detect") {
+		cfg.Settings.AdDetect = adDetect
 	}
 
 	providerCfg, ok := cfg.Providers[cfg.DefaultProvider]

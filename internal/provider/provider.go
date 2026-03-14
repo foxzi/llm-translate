@@ -37,6 +37,35 @@ INDICATORS: last week, announced, reported, was
 
 Text to analyze:`
 
+const AdDetectPrompt = `Analyze whether the following text is advertising or promotional content. Respond ONLY in this exact format:
+AD_TYPE: <none|direct|native|sponsored|pr> (<confidence 0.0-1.0>)
+AD_MARKERS: <comma-separated list of advertising indicators found>
+
+Types:
+- none: genuine editorial/news content with no advertising intent
+- direct: explicit advertising, product promotion, call-to-action, commercial offer
+- native: advertising disguised as editorial content, paid placement that mimics news
+- sponsored: clearly marked sponsored content, paid partnership, branded content
+- pr: press release, corporate announcement promoting company/product without editorial value
+
+Markers to detect:
+- product_promotion, call_to_action, brand_emphasis, price_mention, discount_offer, affiliate_links, excessive_praise, no_criticism, corporate_language, marketing_claims, promotional_tone, sponsored_disclosure, paid_partnership, one_sided_coverage
+
+Rules:
+- Be strict: genuine news about companies is NOT advertising (e.g. earnings report, regulatory action)
+- native ads often lack criticism and use promotional tone while pretending to be news
+- pr content focuses on company achievements without balanced perspective
+- Round confidence to 1 decimal place
+
+Example responses:
+AD_TYPE: native (0.8)
+AD_MARKERS: product_promotion, excessive_praise, no_criticism, promotional_tone
+
+AD_TYPE: none (0.9)
+AD_MARKERS: none
+
+Text to analyze:`
+
 const SentimentPrompt = `Analyze the sentiment of the following text. Respond ONLY with a single line in format:
 SENTIMENT: <positive|negative|neutral> (<score from -1.0 to 1.0>)
 
@@ -334,6 +363,14 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 		sections = append(sections, "")
 	}
 
+	if req.AdDetect {
+		sections = append(sections, "=== AD DETECT ===")
+		sections = append(sections, "AD_TYPE: <none|direct|native|sponsored|pr> (<confidence 0.0-1.0>)")
+		sections = append(sections, "AD_MARKERS: <comma-separated advertising indicators>")
+		sections = append(sections, "Rules: genuine news about companies is NOT advertising. Be strict.")
+		sections = append(sections, "")
+	}
+
 	sections = append(sections, "Text to analyze:")
 
 	return strings.Join(sections, "\n")
@@ -408,6 +445,12 @@ func ParseCombinedResponse(response string, req CombinedAnalysisRequest) Combine
 		}
 	}
 
+	if req.AdDetect {
+		if ad, err := ParseAdDetectResponse(response); err == nil {
+			result.AdDetect = &ad
+		}
+	}
+
 	return result
 }
 
@@ -425,6 +468,7 @@ type Provider interface {
 	ExtractEntities(ctx context.Context, text string) (EntitiesResponse, error)
 	ExtractEvents(ctx context.Context, text string) (EventsResponse, error)
 	AnalyzeTimeFocus(ctx context.Context, text string) (TimeFocusResponse, error)
+	AnalyzeAdDetect(ctx context.Context, text string) (AdDetectResponse, error)
 	AnalyzeCombined(ctx context.Context, req CombinedAnalysisRequest) (CombinedAnalysisResponse, error)
 	ValidateConfig() error
 }
@@ -442,6 +486,7 @@ type CombinedAnalysisRequest struct {
 	Entities       bool
 	Events         bool
 	TimeFocus      bool
+	AdDetect       bool
 }
 
 type CombinedAnalysisResponse struct {
@@ -456,6 +501,7 @@ type CombinedAnalysisResponse struct {
 	Entities       *EntitiesResponse
 	Events         *EventsResponse
 	TimeFocus      *TimeFocusResponse
+	AdDetect       *AdDetectResponse
 }
 
 type TranslateRequest struct {
@@ -535,6 +581,12 @@ type TimeFocusResponse struct {
 	Confidence   float64  // 0.0-1.0
 	IsPrediction bool     // true if text contains predictions/forecasts
 	Indicators   []string // temporal indicators found in text
+}
+
+type AdDetectResponse struct {
+	AdType     string   // none, direct, native, sponsored, pr
+	Confidence float64  // 0.0-1.0
+	Markers    []string // advertising indicators found in text
 }
 
 type BaseProvider struct {
@@ -1010,6 +1062,34 @@ func ParseTimeFocusResponse(response string) (TimeFocusResponse, error) {
 	indRe := regexp.MustCompile(`(?i)INDICATORS:\s*(.+)`)
 	if matches := indRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.Indicators = parseCommaSeparated(matches[1])
+	}
+
+	return result, nil
+}
+
+func ParseAdDetectResponse(response string) (AdDetectResponse, error) {
+	response = strings.TrimSpace(response)
+	result := AdDetectResponse{}
+
+	// Parse AD_TYPE line
+	adRe := regexp.MustCompile(`(?i)AD_TYPE:\s*(none|direct|native|sponsored|pr)\s*\(([0-9.]+)\)`)
+	if matches := adRe.FindStringSubmatch(response); len(matches) >= 3 {
+		result.AdType = strings.ToLower(matches[1])
+		if score, err := strconv.ParseFloat(matches[2], 64); err == nil {
+			result.Confidence = score
+		}
+	} else {
+		return AdDetectResponse{}, fmt.Errorf("invalid ad detect response format: %s", response)
+	}
+
+	// Parse AD_MARKERS line
+	markersRe := regexp.MustCompile(`(?i)AD_MARKERS:\s*(.+)`)
+	if matches := markersRe.FindStringSubmatch(response); len(matches) >= 2 {
+		markers := parseCommaSeparated(matches[1])
+		if len(markers) == 1 && markers[0] == "none" {
+			markers = nil
+		}
+		result.Markers = markers
 	}
 
 	return result, nil
