@@ -927,6 +927,10 @@ func ParseEntitiesResponse(response string) (EntitiesResponse, error) {
 		result.Amounts = filterAmounts(parseCommaSeparatedKeepCase(matches[1]))
 	}
 
+	if len(result.Persons) == 0 && len(result.Organizations) == 0 && len(result.Locations) == 0 && len(result.Dates) == 0 && len(result.Amounts) == 0 {
+		return EntitiesResponse{}, fmt.Errorf("no entities found in response: %s", response)
+	}
+
 	return result, nil
 }
 
@@ -948,6 +952,10 @@ func ParseEventsResponse(response string) (EventsResponse, error) {
 				}
 			}
 		}
+	}
+
+	if len(result.Events) == 0 {
+		return EventsResponse{}, fmt.Errorf("no events found in response: %s", response)
 	}
 
 	return result, nil
