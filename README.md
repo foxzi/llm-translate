@@ -13,7 +13,7 @@ A powerful command-line tool for translating text between languages using variou
 - **Proxy Support**: HTTP, HTTPS, and SOCKS5 proxy configuration
 - **Retry Logic**: Automatic retries with exponential backoff
 - **Configurable**: YAML configuration files with environment variable support
-- **Text Analysis**: Sentiment analysis, emotion detection, topic classification, tag extraction, named entity recognition (NER), event extraction, usefulness detection, and temporal focus analysis
+- **Text Analysis**: Sentiment analysis, emotion detection, topic classification, tag extraction, named entity recognition (NER), event extraction, usefulness detection, temporal focus analysis, and advertising detection
 
 ## Installation
 
@@ -97,6 +97,7 @@ settings:
   events: false             # Extract key events mentioned in text
   usefulness: false         # Detect useless/spam content (advertising, empty announcements, etc.)
   time_focus: false         # Analyze temporal focus (past/present/future) and detect predictions
+  ad_detect: false          # Detect advertising content (direct, native, sponsored, PR)
 
 providers:
   openai:
@@ -201,6 +202,7 @@ proxy:
 | `--events` | | Extract key events from text | false |
 | `--usefulness` | | Detect useless/spam content (advertising, empty announcements) | false |
 | `--time-focus` | | Analyze temporal focus (past/present/future) and detect predictions | false |
+| `--ad-detect` | | Detect advertising content (direct, native, sponsored, PR) | false |
 | `--verbose` | | Verbose output | false |
 | `--version` | `-v` | Show version | - |
 | `--quiet` | `-q` | Quiet mode | false |
@@ -308,10 +310,13 @@ llm-translate -i article.txt -o article_ru.txt -t ru --usefulness
 # Analyze temporal focus and detect predictions
 llm-translate -i article.txt -o article_ru.txt -t ru --time-focus
 
+# Detect advertising content
+llm-translate -i article.txt -o article_ru.txt -t ru --ad-detect
+
 # Full analysis - combine all
 llm-translate -i article.txt -o article_ru.txt -t ru \
   --sentiment --tags 5 --classify --emotions --factuality --impact \
-  --sensationalism --entities --events --usefulness --time-focus
+  --sensationalism --entities --events --usefulness --time-focus --ad-detect
 ```
 
 Output frontmatter example:
@@ -381,6 +386,8 @@ time_indicators:
   - announced
   - approved
   - this week
+ad_type: none
+ad_confidence: 0.9
 ---
 ```
 
@@ -428,6 +435,13 @@ time_indicators:
 - **mixed**: contains significant elements of multiple time frames
 - **is_prediction**: true only when text contains explicit predictions, forecasts, or speculations about future outcomes (not for scheduled events or confirmed plans)
 
+**Advertising detection:**
+- **none**: genuine editorial/news content with no advertising intent
+- **direct**: explicit advertising, product promotion, call-to-action, commercial offer
+- **native**: advertising disguised as editorial content, paid placement that mimics news
+- **sponsored**: clearly marked sponsored content, paid partnership, branded content
+- **pr**: press release, corporate announcement promoting company/product without editorial value
+
 Configuration in YAML:
 
 ```yaml
@@ -443,6 +457,7 @@ settings:
   events: true
   usefulness: true
   time_focus: true
+  ad_detect: true
 ```
 
 ### Proxy Configuration

@@ -29,6 +29,7 @@ settings:
   events: false          # Extract key events mentioned in text
   usefulness: false      # Detect useless/spam content (advertising, empty announcements)
   time_focus: false      # Analyze temporal focus (past/present/future) and detect predictions
+  ad_detect: false       # Detect advertising content (direct, native, sponsored, PR)
 
 # Strong validation settings (--strong mode)
 strong_validation:
