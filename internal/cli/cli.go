@@ -772,10 +772,11 @@ func loadGlossary(path string) ([]config.GlossaryEntry, error) {
 }
 
 func truncateText(text string, maxLen int) string {
-	if len(text) <= maxLen {
+	runes := []rune(text)
+	if len(runes) <= maxLen {
 		return text
 	}
-	return text[:maxLen] + "..."
+	return string(runes[:maxLen]) + "..."
 }
 
 // extractFrontmatter extracts YAML frontmatter from markdown content.
