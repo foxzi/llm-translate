@@ -110,6 +110,7 @@ func (t *Translator) Translate(ctx context.Context, req TranslateRequest) (Trans
 					t.logWarn("Strong validation failed for chunk %d: %v", i+1, err)
 				}
 
+				retrySuccess := false
 				for retry := 1; retry <= req.StrongRetries; retry++ {
 					if t.verbose {
 						t.logInfo("Retry %d/%d: requesting re-translation...", retry, req.StrongRetries)
@@ -121,14 +122,15 @@ func (t *Translator) Translate(ctx context.Context, req TranslateRequest) (Trans
 						req.TargetLang, req.Context,
 					)
 
-					retryResp, err := t.translateWithRetry(ctx, retryReq)
-					if err != nil {
+					retryResp, retryErr := t.translateWithRetry(ctx, retryReq)
+					if retryErr != nil {
 						continue
 					}
 
-					validated, err = t.validateTranslation(ctx, chunk, retryResp.Text, req)
-					if err == nil {
-						translatedChunk = validated
+					retryValidated, validateErr := t.validateTranslation(ctx, chunk, retryResp.Text, req)
+					if validateErr == nil {
+						translatedChunk = retryValidated
+						retrySuccess = true
 						if t.verbose {
 							t.logInfo("Strong validation passed")
 						}
@@ -136,7 +138,7 @@ func (t *Translator) Translate(ctx context.Context, req TranslateRequest) (Trans
 					}
 				}
 
-				if err != nil {
+				if !retrySuccess {
 					return TranslateResponse{}, fmt.Errorf("strong validation failed after %d retries", req.StrongRetries)
 				}
 			} else {
@@ -325,7 +327,7 @@ func (t *Translator) createHTTPClient() (*http.Client, error) {
 	}
 
 	if proxyCfg.URL != "" {
-		return proxy.NewHTTPClient(proxyCfg)
+		return proxy.NewHTTPClient(proxyCfg, t.config.Settings.Timeout)
 	}
 
 	return &http.Client{
