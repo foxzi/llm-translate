@@ -61,7 +61,7 @@ func (p *CodexCLIProvider) ValidateConfig() error {
 }
 
 func (p *CodexCLIProvider) runCLI(ctx context.Context, prompt string) (string, error) {
-	args := []string{"exec", prompt}
+	args := []string{"exec", "--skip-git-repo-check", prompt}
 
 	cmd := exec.CommandContext(ctx, p.cliPath, args...)
 
@@ -78,7 +78,7 @@ func (p *CodexCLIProvider) runCLI(ctx context.Context, prompt string) (string, e
 }
 
 func (p *CodexCLIProvider) runCLIJSON(ctx context.Context, prompt string) (string, int, error) {
-	args := []string{"exec", "--json", prompt}
+	args := []string{"exec", "--skip-git-repo-check", "--json", prompt}
 
 	cmd := exec.CommandContext(ctx, p.cliPath, args...)
 
