@@ -339,11 +339,12 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 
 	if req.Entities {
 		sections = append(sections, "=== ENTITIES ===")
-		sections = append(sections, "PERSONS: <comma-separated, full names, nominative case, no duplicates>")
-		sections = append(sections, "ORGANIZATIONS: <comma-separated, proper names only, no common nouns/countries/blockchains>")
-		sections = append(sections, "LOCATIONS: <comma-separated, geographic places only, nominative case>")
-		sections = append(sections, "DATES: <comma-separated, bare dates without prepositions, nominative case>")
-		sections = append(sections, "AMOUNTS: <comma-separated, complete numbers with currency>")
+		sections = append(sections, "ENTITY_PERSONS: <comma-separated, full names, nominative case, no duplicates>")
+		sections = append(sections, "ENTITY_ORGANIZATIONS: <comma-separated, proper names only, no common nouns/countries/blockchains>")
+		sections = append(sections, "ENTITY_LOCATIONS: <comma-separated, geographic places only, nominative case>")
+		sections = append(sections, "ENTITY_DATES: <comma-separated, bare dates without prepositions, nominative case>")
+		sections = append(sections, "ENTITY_AMOUNTS: <comma-separated, complete numbers with currency>")
+		sections = append(sections, "Use 'none' if no entities found for a category.")
 		sections = append(sections, "")
 	}
 
@@ -810,6 +811,25 @@ func parseCommaSeparatedKeepCase(s string) []string {
 // Filters out: standalone bare numbers (no currency/unit), very short fragments.
 var amountHasContextRe = regexp.MustCompile(`(?i)[\$€£¥₽%]|млн|млрд|тыс|трлн|million|billion|thousand|trillion|процент|percent|доллар|dollar|евро|euro|рубл|рубле|фунт|pound|иен|yen|юан|yuan`)
 
+// filterEntityGarbage removes entries that look like other section headers
+// leaked into entity values (e.g. "ORGANIZATIONS: Bitcoin" or "DATES:")
+func filterEntityGarbage(items []string) []string {
+	sectionHeaders := regexp.MustCompile(`(?i)^(ENTITY_)?(PERSONS|ORGANIZATIONS|LOCATIONS|DATES|AMOUNTS|SENTIMENT|FACTUALITY|EVIDENCE|EMOTIONS|IMPACT|AFFECTED|SENSATIONALISM|MARKERS|USEFULNESS|REASONS|EVENTS|TAGS|TOPICS|SCOPE|TYPE|TIME_FOCUS|IS_PREDICTION|INDICATORS|AD_TYPE|AD_MARKERS):`)
+	var result []string
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" || strings.ToLower(item) == "none" {
+			continue
+		}
+		// Skip items that are just section headers or contain them
+		if sectionHeaders.MatchString(item) {
+			continue
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
 func filterAmounts(amounts []string) []string {
 	var result []string
 	for _, a := range amounts {
@@ -949,34 +969,34 @@ func ParseEntitiesResponse(response string) (EntitiesResponse, error) {
 	response = strings.TrimSpace(response)
 	result := EntitiesResponse{}
 
-	// Parse PERSONS (keep case for proper names)
-	personsRe := regexp.MustCompile(`(?im)^PERSONS:\s*(.+)`)
+	// Parse PERSONS (supports both ENTITY_PERSONS: and PERSONS: formats)
+	personsRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?PERSONS:\s*(.+)`)
 	if matches := personsRe.FindStringSubmatch(response); len(matches) >= 2 {
-		result.Persons = parseCommaSeparatedKeepCase(matches[1])
+		result.Persons = filterEntityGarbage(parseCommaSeparatedKeepCase(matches[1]))
 	}
 
-	// Parse ORGANIZATIONS (keep case for proper names)
-	orgsRe := regexp.MustCompile(`(?im)^ORGANIZATIONS:\s*(.+)`)
+	// Parse ORGANIZATIONS (supports both ENTITY_ORGANIZATIONS: and ORGANIZATIONS: formats)
+	orgsRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?ORGANIZATIONS:\s*(.+)`)
 	if matches := orgsRe.FindStringSubmatch(response); len(matches) >= 2 {
-		result.Organizations = parseCommaSeparatedKeepCase(matches[1])
+		result.Organizations = filterEntityGarbage(parseCommaSeparatedKeepCase(matches[1]))
 	}
 
-	// Parse LOCATIONS (keep case for proper names)
-	locsRe := regexp.MustCompile(`(?im)^LOCATIONS:\s*(.+)`)
+	// Parse LOCATIONS (supports both ENTITY_LOCATIONS: and LOCATIONS: formats)
+	locsRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?LOCATIONS:\s*(.+)`)
 	if matches := locsRe.FindStringSubmatch(response); len(matches) >= 2 {
-		result.Locations = parseCommaSeparatedKeepCase(matches[1])
+		result.Locations = filterEntityGarbage(parseCommaSeparatedKeepCase(matches[1]))
 	}
 
-	// Parse DATES (keep case for date formatting)
-	datesRe := regexp.MustCompile(`(?im)^DATES:\s*(.+)`)
+	// Parse DATES (supports both ENTITY_DATES: and DATES: formats)
+	datesRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?DATES:\s*(.+)`)
 	if matches := datesRe.FindStringSubmatch(response); len(matches) >= 2 {
-		result.Dates = parseCommaSeparatedKeepCase(matches[1])
+		result.Dates = filterEntityGarbage(parseCommaSeparatedKeepCase(matches[1]))
 	}
 
-	// Parse AMOUNTS (keep case, then filter garbage)
-	amountsRe := regexp.MustCompile(`(?im)^AMOUNTS:\s*(.+)`)
+	// Parse AMOUNTS (supports both ENTITY_AMOUNTS: and AMOUNTS: formats)
+	amountsRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?AMOUNTS:\s*(.+)`)
 	if matches := amountsRe.FindStringSubmatch(response); len(matches) >= 2 {
-		result.Amounts = filterAmounts(parseCommaSeparatedKeepCase(matches[1]))
+		result.Amounts = filterAmounts(filterEntityGarbage(parseCommaSeparatedKeepCase(matches[1])))
 	}
 
 	if len(result.Persons) == 0 && len(result.Organizations) == 0 && len(result.Locations) == 0 && len(result.Dates) == 0 && len(result.Amounts) == 0 {
