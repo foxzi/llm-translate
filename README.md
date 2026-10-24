@@ -515,7 +515,9 @@ llm-translate -p vllm -u http://localhost:8000/v1 -m translategemma-12b -f en -t
 
 TranslateGemma models accept only a single user message with language codes,
 so for them the `vllm` provider requires an explicit `--from`, and
-`--style`, `--context`, glossary and text analysis are not supported.
+`--style`, `--context` and glossary are not supported. Text analysis works:
+it is sent to `/v1/completions` with a raw Gemma prompt, bypassing the
+model's chat template.
 
 ### Using CLI-based Providers
 
