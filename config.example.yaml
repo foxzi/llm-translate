@@ -111,6 +111,10 @@ providers:
     # OpenAI-compatible server (vLLM, llama-swap); api_key is optional
     base_url: http://localhost:8000/v1
     model: translategemma-12b
+    # Optional extra args for the server chat template, e.g. disable
+    # Qwen3 thinking so analysis output is not cut off by reasoning:
+    # chat_template_kwargs:
+    #   enable_thinking: false
 
   openrouter:
     api_key: ${OPENROUTER_API_KEY}

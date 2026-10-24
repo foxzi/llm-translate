@@ -519,6 +519,19 @@ so for them the `vllm` provider requires an explicit `--from`, and
 it is sent to `/v1/completions` with a raw Gemma prompt, bypassing the
 model's chat template.
 
+For reasoning models (e.g. Qwen3) set `chat_template_kwargs` in the provider
+config to disable thinking, otherwise reasoning can use up the token limit
+and the analysis comes back empty:
+
+```yaml
+providers:
+  vllm:
+    base_url: http://localhost:8000/v1
+    model: qwen3.8-27b
+    chat_template_kwargs:
+      enable_thinking: false
+```
+
 ### Using CLI-based Providers
 
 Use locally installed and authorized CLI tools (Claude Code, Codex, Qwen Code) without managing API keys:

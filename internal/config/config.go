@@ -58,6 +58,9 @@ type ProviderConfig struct {
 	BaseURL string      `yaml:"base_url"`
 	Model   string      `yaml:"model"`
 	Proxy   ProxyConfig `yaml:"proxy"`
+	// ChatTemplateKwargs is passed as chat_template_kwargs to OpenAI-compatible
+	// servers (e.g. {enable_thinking: false} for Qwen3 on vLLM).
+	ChatTemplateKwargs map[string]any `yaml:"chat_template_kwargs"`
 }
 
 type Prompts struct {

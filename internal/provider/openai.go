@@ -21,6 +21,8 @@ type openAIRequest struct {
 	Messages    []message `json:"messages"`
 	Temperature float64   `json:"temperature"`
 	MaxTokens   int       `json:"max_tokens,omitempty"`
+
+	ChatTemplateKwargs map[string]any `json:"chat_template_kwargs,omitempty"`
 }
 
 type message struct {
@@ -93,9 +95,10 @@ func (p *OpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (T
 	fullPrompt := p.buildPrompt(req, systemPrompt)
 
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: req.Temperature,
-		MaxTokens:   req.MaxTokens,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        req.Temperature,
+		MaxTokens:          req.MaxTokens,
 		Messages: []message{
 			{
 				Role:    "system",
@@ -158,9 +161,10 @@ func (p *OpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (T
 
 func (p *OpenAIProvider) AnalyzeSentiment(ctx context.Context, text string) (SentimentResponse, error) {
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: 0.1,
-		MaxTokens:   100,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        0.1,
+		MaxTokens:          100,
 		Messages: []message{
 			{
 				Role:    "system",
@@ -218,9 +222,10 @@ func (p *OpenAIProvider) ExtractTags(ctx context.Context, text string, count int
 	tagsPrompt := fmt.Sprintf(TagsPromptTemplate, count)
 
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: 0.3,
-		MaxTokens:   200,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        0.3,
+		MaxTokens:          200,
 		Messages: []message{
 			{
 				Role:    "system",
@@ -276,9 +281,10 @@ func (p *OpenAIProvider) ExtractTags(ctx context.Context, text string, count int
 
 func (p *OpenAIProvider) Classify(ctx context.Context, text string) (ClassifyResponse, error) {
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: 0.1,
-		MaxTokens:   200,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        0.1,
+		MaxTokens:          200,
 		Messages: []message{
 			{
 				Role:    "system",
@@ -334,9 +340,10 @@ func (p *OpenAIProvider) Classify(ctx context.Context, text string) (ClassifyRes
 
 func (p *OpenAIProvider) AnalyzeEmotions(ctx context.Context, text string) (EmotionsResponse, error) {
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: 0.1,
-		MaxTokens:   200,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        0.1,
+		MaxTokens:          200,
 		Messages: []message{
 			{
 				Role:    "system",
@@ -392,9 +399,10 @@ func (p *OpenAIProvider) AnalyzeEmotions(ctx context.Context, text string) (Emot
 
 func (p *OpenAIProvider) AnalyzeFactuality(ctx context.Context, text string) (FactualityResponse, error) {
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: 0.1,
-		MaxTokens:   200,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        0.1,
+		MaxTokens:          200,
 		Messages: []message{
 			{
 				Role:    "system",
@@ -450,9 +458,10 @@ func (p *OpenAIProvider) AnalyzeFactuality(ctx context.Context, text string) (Fa
 
 func (p *OpenAIProvider) AnalyzeImpact(ctx context.Context, text string) (ImpactResponse, error) {
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: 0.1,
-		MaxTokens:   100,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        0.1,
+		MaxTokens:          100,
 		Messages: []message{
 			{
 				Role:    "system",
@@ -508,9 +517,10 @@ func (p *OpenAIProvider) AnalyzeImpact(ctx context.Context, text string) (Impact
 
 func (p *OpenAIProvider) AnalyzeSensationalism(ctx context.Context, text string) (SensationalismResponse, error) {
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: 0.1,
-		MaxTokens:   150,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        0.1,
+		MaxTokens:          150,
 		Messages: []message{
 			{
 				Role:    "system",
@@ -566,9 +576,10 @@ func (p *OpenAIProvider) AnalyzeSensationalism(ctx context.Context, text string)
 
 func (p *OpenAIProvider) ExtractEntities(ctx context.Context, text string) (EntitiesResponse, error) {
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: 0.1,
-		MaxTokens:   300,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        0.1,
+		MaxTokens:          300,
 		Messages: []message{
 			{
 				Role:    "system",
@@ -624,9 +635,10 @@ func (p *OpenAIProvider) ExtractEntities(ctx context.Context, text string) (Enti
 
 func (p *OpenAIProvider) ExtractEvents(ctx context.Context, text string) (EventsResponse, error) {
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: 0.1,
-		MaxTokens:   200,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        0.1,
+		MaxTokens:          200,
 		Messages: []message{
 			{
 				Role:    "system",
@@ -682,9 +694,10 @@ func (p *OpenAIProvider) ExtractEvents(ctx context.Context, text string) (Events
 
 func (p *OpenAIProvider) AnalyzeUsefulness(ctx context.Context, text string) (UsefulnessResponse, error) {
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: 0.1,
-		MaxTokens:   200,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        0.1,
+		MaxTokens:          200,
 		Messages: []message{
 			{
 				Role:    "system",
@@ -740,9 +753,10 @@ func (p *OpenAIProvider) AnalyzeUsefulness(ctx context.Context, text string) (Us
 
 func (p *OpenAIProvider) AnalyzeAdDetect(ctx context.Context, text string) (AdDetectResponse, error) {
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: 0.1,
-		MaxTokens:   200,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        0.1,
+		MaxTokens:          200,
 		Messages: []message{
 			{
 				Role:    "system",
@@ -798,9 +812,10 @@ func (p *OpenAIProvider) AnalyzeAdDetect(ctx context.Context, text string) (AdDe
 
 func (p *OpenAIProvider) AnalyzeTimeFocus(ctx context.Context, text string) (TimeFocusResponse, error) {
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: 0.1,
-		MaxTokens:   200,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        0.1,
+		MaxTokens:          200,
 		Messages: []message{
 			{
 				Role:    "system",
@@ -858,9 +873,10 @@ func (p *OpenAIProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalys
 	prompt := BuildCombinedPrompt(req)
 
 	openAIReq := openAIRequest{
-		Model:       p.config.Model,
-		Temperature: 0.2,
-		MaxTokens:   2000,
+		Model:              p.config.Model,
+		ChatTemplateKwargs: p.config.ChatTemplateKwargs,
+		Temperature:        0.2,
+		MaxTokens:          2000,
 		Messages: []message{
 			{Role: "system", Content: prompt},
 			{Role: "user", Content: req.Text},
