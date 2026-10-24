@@ -53,7 +53,7 @@ type usage struct {
 type openAIError struct {
 	Message string `json:"message"`
 	Type    string `json:"type"`
-	Code    string `json:"code"`
+	Code    any    `json:"code"` // string for OpenAI, number for vLLM
 }
 
 func NewOpenAIProvider(cfg config.ProviderConfig, client *http.Client) Provider {
