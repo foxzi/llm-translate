@@ -106,7 +106,12 @@ providers:
     # No API key needed for local Ollama
     base_url: http://localhost:11434
     model: llama3.2
-    
+
+  vllm:
+    # OpenAI-compatible server (vLLM, llama-swap); api_key is optional
+    base_url: http://localhost:8000/v1
+    model: translategemma-12b
+
   openrouter:
     api_key: ${OPENROUTER_API_KEY}
     base_url: https://openrouter.ai/api/v1

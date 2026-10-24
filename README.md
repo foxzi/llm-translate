@@ -4,7 +4,7 @@ A powerful command-line tool for translating text between languages using variou
 
 ## Features
 
-- **Multiple LLM Providers**: Support for OpenAI, Anthropic, Google, Ollama, OpenRouter, and CLI-based providers (Claude Code, Codex, Qwen Code)
+- **Multiple LLM Providers**: Support for OpenAI, Anthropic, Google, Ollama, vLLM/llama-swap, OpenRouter, and CLI-based providers (Claude Code, Codex, Qwen Code)
 - **Flexible Input/Output**: File-based and pipe modes
 - **Smart Text Processing**: Automatic chunking for long texts
 - **Format Preservation**: Maintains Markdown and HTML formatting
@@ -508,7 +508,14 @@ ollama serve
 
 # Translate using local model
 llm-translate -p ollama -m llama3.2 -i text.txt -t es
+
+# OpenAI-compatible server (vLLM, llama-swap)
+llm-translate -p vllm -u http://localhost:8000/v1 -m translategemma-12b -f en -t ru -i text.md --timeout 300
 ```
+
+TranslateGemma models accept only a single user message with language codes,
+so for them the `vllm` provider requires an explicit `--from`, and
+`--style`, `--context`, glossary and text analysis are not supported.
 
 ### Using CLI-based Providers
 
