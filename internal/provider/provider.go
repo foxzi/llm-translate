@@ -726,7 +726,7 @@ func abs(x float64) float64 {
 func ParseTagsResponse(response string) (TagsResponse, error) {
 	response = strings.TrimSpace(response)
 
-	re := regexp.MustCompile(`(?im)^TAGS:\s*(.+)`)
+	re := regexp.MustCompile(`(?im)^TAGS:[ \t]*(.+)`)
 	matches := re.FindStringSubmatch(response)
 
 	if len(matches) < 2 {
@@ -756,19 +756,19 @@ func ParseClassifyResponse(response string) (ClassifyResponse, error) {
 	result := ClassifyResponse{}
 
 	// Parse TOPICS
-	topicsRe := regexp.MustCompile(`(?im)^TOPICS:\s*(.+)`)
+	topicsRe := regexp.MustCompile(`(?im)^TOPICS:[ \t]*(.+)`)
 	if matches := topicsRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.Topics = parseCommaSeparated(matches[1])
 	}
 
 	// Parse SCOPE
-	scopeRe := regexp.MustCompile(`(?im)^SCOPE:\s*(.+)`)
+	scopeRe := regexp.MustCompile(`(?im)^SCOPE:[ \t]*(.+)`)
 	if matches := scopeRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.Scope = parseCommaSeparated(matches[1])
 	}
 
 	// Parse TYPE
-	typeRe := regexp.MustCompile(`(?im)^TYPE:\s*(.+)`)
+	typeRe := regexp.MustCompile(`(?im)^TYPE:[ \t]*(.+)`)
 	if matches := typeRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.NewsType = parseCommaSeparated(matches[1])
 	}
@@ -870,7 +870,7 @@ func ParseEmotionsResponse(response string) (EmotionsResponse, error) {
 		Emotions: make(map[string]float64),
 	}
 
-	re := regexp.MustCompile(`(?im)^EMOTIONS:\s*(.+)`)
+	re := regexp.MustCompile(`(?im)^EMOTIONS:[ \t]*(.+)`)
 	matches := re.FindStringSubmatch(response)
 
 	if len(matches) < 2 {
@@ -911,7 +911,7 @@ func ParseFactualityResponse(response string) (FactualityResponse, error) {
 	}
 
 	// Parse EVIDENCE line
-	evidenceRe := regexp.MustCompile(`(?im)^EVIDENCE:\s*(.+)`)
+	evidenceRe := regexp.MustCompile(`(?im)^EVIDENCE:[ \t]*(.+)`)
 	if matches := evidenceRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.Evidence = parseCommaSeparated(matches[1])
 	}
@@ -927,7 +927,7 @@ func ParseImpactResponse(response string) (ImpactResponse, error) {
 	response = strings.TrimSpace(response)
 	result := ImpactResponse{}
 
-	re := regexp.MustCompile(`(?im)^AFFECTED:\s*(.+)`)
+	re := regexp.MustCompile(`(?im)^AFFECTED:[ \t]*(.+)`)
 	matches := re.FindStringSubmatch(response)
 
 	if len(matches) < 2 {
@@ -953,7 +953,7 @@ func ParseSensationalismResponse(response string) (SensationalismResponse, error
 	}
 
 	// Parse MARKERS line
-	markersRe := regexp.MustCompile(`(?im)^MARKERS:\s*(.+)`)
+	markersRe := regexp.MustCompile(`(?im)^MARKERS:[ \t]*(.+)`)
 	if matches := markersRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.Markers = parseCommaSeparated(matches[1])
 	}
@@ -970,31 +970,31 @@ func ParseEntitiesResponse(response string) (EntitiesResponse, error) {
 	result := EntitiesResponse{}
 
 	// Parse PERSONS (supports both ENTITY_PERSONS: and PERSONS: formats)
-	personsRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?PERSONS:\s*(.+)`)
+	personsRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?PERSONS:[ \t]*(.+)`)
 	if matches := personsRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.Persons = filterEntityGarbage(parseCommaSeparatedKeepCase(matches[1]))
 	}
 
 	// Parse ORGANIZATIONS (supports both ENTITY_ORGANIZATIONS: and ORGANIZATIONS: formats)
-	orgsRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?ORGANIZATIONS:\s*(.+)`)
+	orgsRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?ORGANIZATIONS:[ \t]*(.+)`)
 	if matches := orgsRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.Organizations = filterEntityGarbage(parseCommaSeparatedKeepCase(matches[1]))
 	}
 
 	// Parse LOCATIONS (supports both ENTITY_LOCATIONS: and LOCATIONS: formats)
-	locsRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?LOCATIONS:\s*(.+)`)
+	locsRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?LOCATIONS:[ \t]*(.+)`)
 	if matches := locsRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.Locations = filterEntityGarbage(parseCommaSeparatedKeepCase(matches[1]))
 	}
 
 	// Parse DATES (supports both ENTITY_DATES: and DATES: formats)
-	datesRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?DATES:\s*(.+)`)
+	datesRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?DATES:[ \t]*(.+)`)
 	if matches := datesRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.Dates = filterEntityGarbage(parseCommaSeparatedKeepCase(matches[1]))
 	}
 
 	// Parse AMOUNTS (supports both ENTITY_AMOUNTS: and AMOUNTS: formats)
-	amountsRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?AMOUNTS:\s*(.+)`)
+	amountsRe := regexp.MustCompile(`(?im)^(?:ENTITY_)?AMOUNTS:[ \t]*(.+)`)
 	if matches := amountsRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.Amounts = filterAmounts(filterEntityGarbage(parseCommaSeparatedKeepCase(matches[1])))
 	}
@@ -1010,7 +1010,7 @@ func ParseEventsResponse(response string) (EventsResponse, error) {
 	response = strings.TrimSpace(response)
 	result := EventsResponse{}
 
-	re := regexp.MustCompile(`(?im)^EVENTS:\s*(.+)`)
+	re := regexp.MustCompile(`(?im)^EVENTS:[ \t]*(.+)`)
 	matches := re.FindStringSubmatch(response)
 
 	if len(matches) >= 2 {
@@ -1049,7 +1049,7 @@ func ParseUsefulnessResponse(response string) (UsefulnessResponse, error) {
 	}
 
 	// Parse REASONS line
-	reasonsRe := regexp.MustCompile(`(?im)^REASONS:\s*(.+)`)
+	reasonsRe := regexp.MustCompile(`(?im)^REASONS:[ \t]*(.+)`)
 	if matches := reasonsRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.Reasons = parseCommaSeparated(matches[1])
 	}
@@ -1079,7 +1079,7 @@ func ParseTimeFocusResponse(response string) (TimeFocusResponse, error) {
 	}
 
 	// Parse INDICATORS line
-	indRe := regexp.MustCompile(`(?im)^INDICATORS:\s*(.+)`)
+	indRe := regexp.MustCompile(`(?im)^INDICATORS:[ \t]*(.+)`)
 	if matches := indRe.FindStringSubmatch(response); len(matches) >= 2 {
 		result.Indicators = parseCommaSeparated(matches[1])
 	}
@@ -1103,7 +1103,7 @@ func ParseAdDetectResponse(response string) (AdDetectResponse, error) {
 	}
 
 	// Parse AD_MARKERS line
-	markersRe := regexp.MustCompile(`(?im)^AD_MARKERS:\s*(.+)`)
+	markersRe := regexp.MustCompile(`(?im)^AD_MARKERS:[ \t]*(.+)`)
 	if matches := markersRe.FindStringSubmatch(response); len(matches) >= 2 {
 		markers := parseCommaSeparated(matches[1])
 		if len(markers) == 1 && markers[0] == "none" {
