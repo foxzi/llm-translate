@@ -398,6 +398,7 @@ func ParseCombinedResponse(response string, req CombinedAnalysisRequest) Combine
 
 	if req.TagsCount > 0 {
 		if t, err := ParseTagsResponse(response); err == nil {
+			t.Tags = LimitTags(t.Tags, req.TagsCount)
 			result.Tags = &t
 		}
 	}
@@ -760,6 +761,14 @@ func ParseTagsResponse(response string) (TagsResponse, error) {
 	}
 
 	return TagsResponse{Tags: tags}, nil
+}
+
+// LimitTags caps tags at count: models do not always respect the requested number.
+func LimitTags(tags []string, count int) []string {
+	if count > 0 && len(tags) > count {
+		return tags[:count]
+	}
+	return tags
 }
 
 func ParseClassifyResponse(response string) (ClassifyResponse, error) {

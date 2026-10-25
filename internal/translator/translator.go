@@ -197,7 +197,9 @@ func (t *Translator) ExtractTags(ctx context.Context, text string, count int) (p
 	if err := t.ensureProvider(); err != nil {
 		return provider.TagsResponse{}, err
 	}
-	return t.provider.ExtractTags(ctx, text, count)
+	resp, err := t.provider.ExtractTags(ctx, text, count)
+	resp.Tags = provider.LimitTags(resp.Tags, count)
+	return resp, err
 }
 
 func (t *Translator) Classify(ctx context.Context, text string) (provider.ClassifyResponse, error) {
