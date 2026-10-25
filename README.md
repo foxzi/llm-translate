@@ -119,6 +119,13 @@ providers:
   ollama:
     base_url: http://localhost:11434
     model: llama3.2
+
+  vllm:
+    # OpenAI-compatible server (vLLM, llama-swap); api_key is optional
+    base_url: http://localhost:8000/v1
+    model: translategemma-12b
+    # chat_template_kwargs:     # extra chat template args, e.g. for Qwen3
+    #   enable_thinking: false
     
   openrouter:
     api_key: ${OPENROUTER_API_KEY}
@@ -326,6 +333,8 @@ llm-translate -i article.txt -o article_ru.txt -t ru \
 llm-translate -i article.txt -o article_ru.txt -t ru --parallel-analysis \
   --sentiment --tags 5 --entities --events
 ```
+
+See [docs/en/local-servers.md](docs/en/local-servers.md#parallel-analysis) for limitations of parallel analysis.
 
 Output frontmatter example:
 
@@ -539,6 +548,10 @@ providers:
     chat_template_kwargs:
       enable_thinking: false
 ```
+
+More details, including timeouts and `--parallel-analysis` benchmarks:
+[docs/en/local-servers.md](docs/en/local-servers.md)
+([на русском](docs/ru/local-servers.md)).
 
 ### Using CLI-based Providers
 
