@@ -218,6 +218,7 @@ proxy:
 | `--proxy` | `-x` | Proxy server | from config |
 | `--api` | | Run as HTTP API server | false |
 | `--listen` | | API server listen address | :8080 |
+| `--api-token` | | Bearer token required by API server | from config |
 | `--help` | `-h` | Show help | - |
 
 ## Advanced Features
@@ -560,6 +561,7 @@ More details, including timeouts and `--parallel-analysis` benchmarks:
 ```bash
 docker compose up -d --build        # uses ./config.yaml, port 8080
 curl -s -X POST localhost:8080/v1/translate \
+  -H 'Authorization: Bearer <settings.api_token>' \
   -d '{"text":"Hello world","from":"en","to":"ru"}'
 # {"text":"Привет, мир","analysis":{...}}
 ```
