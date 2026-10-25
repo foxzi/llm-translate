@@ -39,6 +39,9 @@ type Settings struct {
 	AdDetect       bool    `yaml:"ad_detect"`
 
 	ParallelAnalysis bool `yaml:"parallel_analysis"`
+
+	// APIToken, if set, is required as a Bearer token by the API server.
+	APIToken string `yaml:"api_token"`
 }
 
 type StrongValidation struct {

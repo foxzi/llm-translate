@@ -63,6 +63,7 @@ var (
 	parallelAnalysis bool
 	apiMode          bool
 	listenAddr       string
+	apiToken         string
 )
 
 func Execute(ctx context.Context) error {
@@ -119,6 +120,7 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().BoolVar(&parallelAnalysis, "parallel-analysis", false, "Analyze the original text in parallel with translation (results in target language)")
 	rootCmd.Flags().BoolVar(&apiMode, "api", false, "Run as HTTP API server")
 	rootCmd.Flags().StringVar(&listenAddr, "listen", ":8080", "Listen address for API server")
+	rootCmd.Flags().StringVar(&apiToken, "api-token", "", "Bearer token required by API server (overrides config)")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 
 	rootCmd.Version = Version
@@ -809,6 +811,10 @@ func applyCLIOverrides(cmd *cobra.Command, cfg *config.Config) {
 
 	if changed("parallel-analysis") {
 		cfg.Settings.ParallelAnalysis = parallelAnalysis
+	}
+
+	if changed("api-token") {
+		cfg.Settings.APIToken = apiToken
 	}
 
 	providerCfg, ok := cfg.Providers[cfg.DefaultProvider]

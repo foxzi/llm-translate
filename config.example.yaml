@@ -31,6 +31,7 @@ settings:
   time_focus: false      # Analyze temporal focus (past/present/future) and detect predictions
   ad_detect: false       # Detect advertising content (direct, native, sponsored, PR)
   parallel_analysis: false  # Analyze the original text in parallel with translation
+  api_token: ""          # API server: require "Authorization: Bearer <token>" (--api-token)
 
 # Strong validation settings (--strong mode)
 strong_validation:

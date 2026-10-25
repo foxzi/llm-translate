@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -37,6 +38,10 @@ func runServer(ctx context.Context, cfg *config.Config, glossary []config.Glossa
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 	mux.HandleFunc("POST /v1/translate", func(w http.ResponseWriter, r *http.Request) {
+		if !authorized(r, cfg.Settings.APIToken) {
+			writeJSON(w, http.StatusUnauthorized, apiError{Error: "unauthorized"})
+			return
+		}
 		handleTranslate(w, r, cfg, glossary)
 	})
 
@@ -50,6 +55,9 @@ func runServer(ctx context.Context, cfg *config.Config, glossary []config.Glossa
 	}()
 
 	logInfo("API server listening on %s (provider: %s, model: %s)", listenAddr, cfg.DefaultProvider, getModelForProvider(cfg))
+	if cfg.Settings.APIToken == "" {
+		logWarn("API token is not set, the server accepts requests without authorization")
+	}
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
@@ -103,6 +111,16 @@ func handleTranslate(w http.ResponseWriter, r *http.Request, cfg *config.Config,
 	}
 
 	writeJSON(w, http.StatusOK, apiResponse{Text: result.Text, Analysis: analysis})
+}
+
+// authorized reports whether r carries "Authorization: Bearer <token>".
+// An empty token disables authorization.
+func authorized(r *http.Request, token string) bool {
+	if token == "" {
+		return true
+	}
+	got, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	return ok && subtle.ConstantTimeCompare([]byte(got), []byte(token)) == 1
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
