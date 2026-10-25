@@ -291,7 +291,11 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 	if req.TagsCount > 0 {
 		sections = append(sections, "=== TAGS ===")
 		sections = append(sections, fmt.Sprintf("TAGS: <extract %d most important tags, comma-separated>", req.TagsCount))
-		sections = append(sections, "Rules: same language as text, lowercase, nominative case, nouns/noun phrases, no duplicates.")
+		tagsLang := "same language as text"
+		if req.Lang != "" {
+			tagsLang = fmt.Sprintf("language %q", req.Lang)
+		}
+		sections = append(sections, fmt.Sprintf("Rules: %s, lowercase, nominative case, nouns/noun phrases, no duplicates.", tagsLang))
 		sections = append(sections, "")
 	}
 
@@ -369,6 +373,12 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 		sections = append(sections, "AD_TYPE: <none|direct|native|sponsored|pr> (<confidence 0.0-1.0>)")
 		sections = append(sections, "AD_MARKERS: <comma-separated advertising indicators>")
 		sections = append(sections, "Rules: genuine news about companies is NOT advertising. Be strict.")
+		sections = append(sections, "")
+	}
+
+	if req.Lang != "" {
+		sections = append(sections, fmt.Sprintf("Write all free-text values (tags, entities, events, indicators, markers) in language %q.", req.Lang))
+		sections = append(sections, "Keep section labels and fixed choice values exactly as specified above, in English.")
 		sections = append(sections, "")
 	}
 
@@ -476,6 +486,7 @@ type Provider interface {
 
 type CombinedAnalysisRequest struct {
 	Text           string
+	Lang           string // language for free-text values; empty = same as text
 	Sentiment      bool
 	TagsCount      int
 	Classify       bool

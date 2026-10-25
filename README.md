@@ -98,6 +98,7 @@ settings:
   usefulness: false         # Detect useless/spam content (advertising, empty announcements, etc.)
   time_focus: false         # Analyze temporal focus (past/present/future) and detect predictions
   ad_detect: false          # Detect advertising content (direct, native, sponsored, PR)
+  parallel_analysis: false  # Analyze the original text in parallel with translation
 
 providers:
   openai:
@@ -203,6 +204,7 @@ proxy:
 | `--usefulness` | | Detect useless/spam content (advertising, empty announcements) | false |
 | `--time-focus` | | Analyze temporal focus (past/present/future) and detect predictions | false |
 | `--ad-detect` | | Detect advertising content (direct, native, sponsored, PR) | false |
+| `--parallel-analysis` | | Analyze the original text in parallel with translation (results in target language) | false |
 | `--verbose` | | Verbose output | false |
 | `--version` | `-v` | Show version | - |
 | `--quiet` | `-q` | Quiet mode | false |
@@ -317,6 +319,12 @@ llm-translate -i article.txt -o article_ru.txt -t ru --ad-detect
 llm-translate -i article.txt -o article_ru.txt -t ru \
   --sentiment --tags 5 --classify --emotions --factuality --impact \
   --sensationalism --entities --events --usefulness --time-focus --ad-detect
+
+# Faster: analyze the original text while translating (two concurrent requests).
+# Tags are requested in the target language. Useful for servers that batch
+# requests (vLLM): ~1.5x faster for translation + full analysis.
+llm-translate -i article.txt -o article_ru.txt -t ru --parallel-analysis \
+  --sentiment --tags 5 --entities --events
 ```
 
 Output frontmatter example:

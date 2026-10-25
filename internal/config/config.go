@@ -37,6 +37,8 @@ type Settings struct {
 	Usefulness     bool    `yaml:"usefulness"`
 	TimeFocus      bool    `yaml:"time_focus"`
 	AdDetect       bool    `yaml:"ad_detect"`
+
+	ParallelAnalysis bool `yaml:"parallel_analysis"`
 }
 
 type StrongValidation struct {

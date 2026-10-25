@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/foxzi/llm-translate/internal/config"
 	llmprovider "github.com/foxzi/llm-translate/internal/provider"
@@ -18,47 +19,48 @@ import (
 var (
 	Version = "dev"
 
-	inputFile      string
-	outputFile     string
-	inputDir       string
-	extensions     string
-	outSuffix      string
-	outPrefix      string
-	sourceLang     string
-	targetLang     string
-	provider       string
-	model          string
-	configPath     string
-	apiKey         string
-	baseURL        string
-	temperature    float64
-	maxTokens      int
-	timeout        int
-	chunkSize      int
-	contextStr     string
-	style          string
-	glossaryFile   string
-	preserveFormat bool
-	strongMode     bool
-	strongRetries  int
-	verbose        bool
-	quiet          bool
-	dryRun         bool
-	proxyURL       string
-	proxyAuth      string
-	noProxy        bool
-	sentiment      bool
-	tagsCount      int
-	classify       bool
-	emotions       bool
-	factuality     bool
-	impact         bool
-	sensationalism bool
-	entities       bool
-	events         bool
-	usefulness     bool
-	timeFocus      bool
-	adDetect       bool
+	inputFile        string
+	outputFile       string
+	inputDir         string
+	extensions       string
+	outSuffix        string
+	outPrefix        string
+	sourceLang       string
+	targetLang       string
+	provider         string
+	model            string
+	configPath       string
+	apiKey           string
+	baseURL          string
+	temperature      float64
+	maxTokens        int
+	timeout          int
+	chunkSize        int
+	contextStr       string
+	style            string
+	glossaryFile     string
+	preserveFormat   bool
+	strongMode       bool
+	strongRetries    int
+	verbose          bool
+	quiet            bool
+	dryRun           bool
+	proxyURL         string
+	proxyAuth        string
+	noProxy          bool
+	sentiment        bool
+	tagsCount        int
+	classify         bool
+	emotions         bool
+	factuality       bool
+	impact           bool
+	sensationalism   bool
+	entities         bool
+	events           bool
+	usefulness       bool
+	timeFocus        bool
+	adDetect         bool
+	parallelAnalysis bool
 )
 
 func Execute(ctx context.Context) error {
@@ -112,6 +114,7 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().BoolVar(&usefulness, "usefulness", false, "Analyze content usefulness (detect useless/spam content)")
 	rootCmd.Flags().BoolVar(&timeFocus, "time-focus", false, "Analyze temporal focus (past/present/future) and detect predictions")
 	rootCmd.Flags().BoolVar(&adDetect, "ad-detect", false, "Detect advertising content (direct, native, sponsored, PR)")
+	rootCmd.Flags().BoolVar(&parallelAnalysis, "parallel-analysis", false, "Analyze the original text in parallel with translation (results in target language)")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 
 	rootCmd.Version = Version
@@ -129,10 +132,39 @@ func Execute(ctx context.Context) error {
 	return rootCmd.ExecuteContext(ctx)
 }
 
+// translateAndAnalyze translates the text and runs enabled analyses. By default
+// the translation is analyzed afterwards; with parallel_analysis the original
+// text is analyzed concurrently and results are requested in the target language.
+func translateAndAnalyze(ctx context.Context, t *translator.Translator, cfg *config.Config, req translator.TranslateRequest, verbose bool) (translator.TranslateResponse, map[string]interface{}, error) {
+	if !cfg.Settings.ParallelAnalysis {
+		result, err := t.Translate(ctx, req)
+		if err != nil {
+			return result, nil, err
+		}
+		return result, runAnalysis(ctx, t, cfg, result.Text, "", verbose), nil
+	}
+
+	// Separate translator: Translator lazily sets its provider and is not safe for concurrent use.
+	at := translator.New(cfg, verbose)
+	var fmUpdates map[string]interface{}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		fmUpdates = runAnalysis(ctx, at, cfg, req.Text, req.TargetLang, verbose)
+	}()
+	result, err := t.Translate(ctx, req)
+	wg.Wait()
+	if err != nil {
+		return result, nil, err
+	}
+	return result, fmUpdates, nil
+}
+
 // runAnalysis performs all enabled text analyses, using a single combined LLM
 // call when 2+ analyses are requested, or individual calls for 0-1 analyses.
 // Returns a map of frontmatter key-value updates.
-func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Config, text string, verbose bool) map[string]interface{} {
+func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Config, text, lang string, verbose bool) map[string]interface{} {
 	fmUpdates := make(map[string]interface{})
 
 	// Count enabled analyses
@@ -185,6 +217,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 		req := llmprovider.CombinedAnalysisRequest{
 			Text:           text,
+			Lang:           lang,
 			Sentiment:      cfg.Settings.Sentiment,
 			TagsCount:      cfg.Settings.TagsCount,
 			Classify:       cfg.Settings.Classify,
@@ -629,13 +662,10 @@ func runTranslate(ctx context.Context, cmd *cobra.Command) error {
 		req.Glossary = glossary
 	}
 
-	result, err := t.Translate(ctx, req)
+	result, fmUpdates, err := translateAndAnalyze(ctx, t, cfg, req, verbose)
 	if err != nil {
 		return fmt.Errorf("translation failed: %w", err)
 	}
-
-	// Run all enabled analyses (combined or individual)
-	fmUpdates := runAnalysis(ctx, t, cfg, result.Text, verbose)
 
 	// Update frontmatter with analysis results if any
 	if len(fmUpdates) > 0 {
@@ -761,6 +791,10 @@ func applyCLIOverrides(cmd *cobra.Command, cfg *config.Config) {
 
 	if changed("ad-detect") {
 		cfg.Settings.AdDetect = adDetect
+	}
+
+	if changed("parallel-analysis") {
+		cfg.Settings.ParallelAnalysis = parallelAnalysis
 	}
 
 	providerCfg, ok := cfg.Providers[cfg.DefaultProvider]
@@ -1078,13 +1112,10 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 		Glossary:       glossary,
 	}
 
-	result, err := t.Translate(ctx, req)
+	result, fmUpdates, err := translateAndAnalyze(ctx, t, cfg, req, verbose)
 	if err != nil {
 		return err
 	}
-
-	// Run all enabled analyses (combined or individual)
-	fmUpdates := runAnalysis(ctx, t, cfg, result.Text, verbose)
 
 	// Update frontmatter with analysis results if any
 	if len(fmUpdates) > 0 {
