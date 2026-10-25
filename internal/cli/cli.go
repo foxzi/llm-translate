@@ -61,6 +61,8 @@ var (
 	timeFocus        bool
 	adDetect         bool
 	parallelAnalysis bool
+	apiMode          bool
+	listenAddr       string
 )
 
 func Execute(ctx context.Context) error {
@@ -115,6 +117,8 @@ func Execute(ctx context.Context) error {
 	rootCmd.Flags().BoolVar(&timeFocus, "time-focus", false, "Analyze temporal focus (past/present/future) and detect predictions")
 	rootCmd.Flags().BoolVar(&adDetect, "ad-detect", false, "Detect advertising content (direct, native, sponsored, PR)")
 	rootCmd.Flags().BoolVar(&parallelAnalysis, "parallel-analysis", false, "Analyze the original text in parallel with translation (results in target language)")
+	rootCmd.Flags().BoolVar(&apiMode, "api", false, "Run as HTTP API server")
+	rootCmd.Flags().StringVar(&listenAddr, "listen", ":8080", "Listen address for API server")
 	rootCmd.Flags().BoolP("help", "h", false, "Show help")
 
 	rootCmd.Version = Version
@@ -585,6 +589,16 @@ func runTranslate(ctx context.Context, cmd *cobra.Command) error {
 	}
 
 	applyCLIOverrides(cmd, cfg)
+
+	if apiMode {
+		var glossary []config.GlossaryEntry
+		if glossaryFile != "" {
+			if glossary, err = loadGlossary(glossaryFile); err != nil {
+				return fmt.Errorf("failed to load glossary: %w", err)
+			}
+		}
+		return runServer(ctx, cfg, glossary)
+	}
 
 	// Directory mode
 	if inputDir != "" {
