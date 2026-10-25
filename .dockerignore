@@ -1,0 +1,8 @@
+bin
+llm-translate
+config.yaml
+examples
+docs
+.git
+.nemo
+.claude
