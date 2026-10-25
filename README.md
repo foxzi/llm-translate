@@ -216,6 +216,8 @@ proxy:
 | `--version` | `-v` | Show version | - |
 | `--quiet` | `-q` | Quiet mode | false |
 | `--proxy` | `-x` | Proxy server | from config |
+| `--api` | | Run as HTTP API server | false |
+| `--listen` | | API server listen address | :8080 |
 | `--help` | `-h` | Show help | - |
 
 ## Advanced Features
@@ -552,6 +554,19 @@ providers:
 More details, including timeouts and `--parallel-analysis` benchmarks:
 [docs/en/local-servers.md](docs/en/local-servers.md)
 ([на русском](docs/ru/local-servers.md)).
+
+### API Server (Docker)
+
+```bash
+docker compose up -d --build        # uses ./config.yaml, port 8080
+curl -s -X POST localhost:8080/v1/translate \
+  -d '{"text":"Hello world","from":"en","to":"ru"}'
+# {"text":"Привет, мир","analysis":{...}}
+```
+
+Without Docker: `llm-translate --api --listen :8080 -c config.yaml`.
+Details: [docs/en/api-server.md](docs/en/api-server.md)
+([на русском](docs/ru/api-server.md)).
 
 ### Using CLI-based Providers
 
