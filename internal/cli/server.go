@@ -24,6 +24,12 @@ type apiRequest struct {
 type apiResponse struct {
 	Text     string                 `json:"text"`
 	Analysis map[string]interface{} `json:"analysis,omitempty"`
+	Usage    apiUsage               `json:"usage"`
+}
+
+type apiUsage struct {
+	PromptTokens     int64 `json:"prompt_tokens"`
+	CompletionTokens int64 `json:"completion_tokens"`
 }
 
 type apiError struct {
@@ -103,14 +109,19 @@ func handleTranslate(w http.ResponseWriter, r *http.Request, cfg *config.Config,
 
 	// A Translator is not safe for concurrent use, so each request gets its own.
 	t := translator.New(cfg, verbose)
-	result, analysis, err := translateAndAnalyze(r.Context(), t, cfg, req, verbose)
+	var usage translator.Usage
+	result, analysis, err := translateAndAnalyze(translator.WithUsage(r.Context(), &usage), t, cfg, req, verbose)
 	if err != nil {
 		logError("translate %s->%s: %v", from, to, err)
 		writeJSON(w, http.StatusBadGateway, apiError{Error: err.Error()})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, apiResponse{Text: result.Text, Analysis: analysis})
+	writeJSON(w, http.StatusOK, apiResponse{
+		Text:     result.Text,
+		Analysis: analysis,
+		Usage:    apiUsage{PromptTokens: usage.PromptTokens.Load(), CompletionTokens: usage.CompletionTokens.Load()},
+	})
 }
 
 // authorized reports whether r carries "Authorization: Bearer <token>".

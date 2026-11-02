@@ -336,12 +336,16 @@ func (t *Translator) createHTTPClient() (*http.Client, error) {
 	}
 
 	if proxyCfg.URL != "" {
-		return proxy.NewHTTPClient(proxyCfg, t.config.Settings.Timeout)
+		c, err := proxy.NewHTTPClient(proxyCfg, t.config.Settings.Timeout)
+		if err != nil {
+			return nil, err
+		}
+		return withUsageTransport(c), nil
 	}
 
-	return &http.Client{
+	return withUsageTransport(&http.Client{
 		Timeout: time.Duration(t.config.Settings.Timeout) * time.Second,
-	}, nil
+	}), nil
 }
 
 func (t *Translator) validateTranslation(ctx context.Context, original, translated string, req TranslateRequest) (string, error) {
