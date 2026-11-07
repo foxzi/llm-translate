@@ -62,8 +62,13 @@ func (p *VLLMProvider) ValidateConfig() error {
 	return nil
 }
 
+// IsTranslateGemma reports whether model is a TranslateGemma model.
+func IsTranslateGemma(model string) bool {
+	return strings.Contains(strings.ToLower(model), "translategemma")
+}
+
 func (p *VLLMProvider) isTranslateGemma() bool {
-	return strings.Contains(strings.ToLower(p.config.Model), "translategemma")
+	return IsTranslateGemma(p.config.Model)
 }
 
 func (p *VLLMProvider) Translate(ctx context.Context, req TranslateRequest) (TranslateResponse, error) {

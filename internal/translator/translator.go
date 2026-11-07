@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -71,6 +72,13 @@ func (t *Translator) Translate(ctx context.Context, req TranslateRequest) (Trans
 	}
 	t.provider = p
 
+	if t.verbose && t.config.DefaultProvider == "vllm" && provider.IsTranslateGemma(providerCfg.Model) &&
+		(req.Style != "" || req.Context != "" || len(req.Glossary) > 0) {
+		gemmaNote.Do(func() {
+			t.logWarn("TranslateGemma does not accept style, context or glossary: they are not sent to the model")
+		})
+	}
+
 	text := req.Text
 	if len(req.Glossary) > 0 {
 		text = applyGlossaryPreProcessing(text, req.Glossary)
@@ -122,6 +130,7 @@ func (t *Translator) Translate(ctx context.Context, req TranslateRequest) (Trans
 					}
 
 					retryReq := providerReq
+					retryReq.Temperature = retryTemperature(req.Temperature, retry)
 					retryReq.Context = fmt.Sprintf(
 						"Previous translation contained untranslated text. Please ensure all text is properly translated to %s. %s",
 						req.TargetLang, req.Context,
@@ -165,6 +174,15 @@ func (t *Translator) Translate(ctx context.Context, req TranslateRequest) (Trans
 		Text:       finalText,
 		TokensUsed: totalTokens,
 	}, nil
+}
+
+var gemmaNote sync.Once
+
+// retryTemperature raises the temperature by 0.2 per strong-validation retry,
+// up to 1.0, so that a model that ignores the retry notice (TranslateGemma)
+// still gets a different request.
+func retryTemperature(base float64, retry int) float64 {
+	return max(base, min(base+0.2*float64(retry), 1.0))
 }
 
 func (t *Translator) ensureProvider() error {
