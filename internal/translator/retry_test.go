@@ -121,3 +121,24 @@ func TestRetryDelay(t *testing.T) {
 		t.Errorf("Retry-After above max must be ignored: delay %v", got)
 	}
 }
+
+func (f *flakyProvider) AnalyzeSentiment(ctx context.Context, text string) (provider.SentimentResponse, error) {
+	f.calls++
+	if f.calls <= len(f.errs) {
+		return provider.SentimentResponse{}, f.errs[f.calls-1]
+	}
+	return provider.SentimentResponse{Sentiment: "positive"}, nil
+}
+
+func TestAnalysisIsRetried(t *testing.T) {
+	f := &flakyProvider{errs: []error{&provider.HTTPError{StatusCode: 502}}}
+	resp, err := newTestTranslator(f, 3).AnalyzeSentiment(context.Background(), "x")
+	if err != nil || resp.Sentiment != "positive" || f.calls != 2 {
+		t.Errorf("resp = %+v, err = %v, calls = %d", resp, err, f.calls)
+	}
+
+	f = &flakyProvider{errs: []error{&provider.HTTPError{StatusCode: 401}}}
+	if _, err := newTestTranslator(f, 3).AnalyzeSentiment(context.Background(), "x"); err == nil || f.calls != 1 {
+		t.Errorf("non-retryable: err = %v, calls = %d", err, f.calls)
+	}
+}

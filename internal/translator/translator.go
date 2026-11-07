@@ -194,14 +194,14 @@ func (t *Translator) AnalyzeSentiment(ctx context.Context, text string) (provide
 	if err := t.ensureProvider(); err != nil {
 		return provider.SentimentResponse{}, err
 	}
-	return t.provider.AnalyzeSentiment(ctx, text)
+	return retry(ctx, t, func() (provider.SentimentResponse, error) { return t.provider.AnalyzeSentiment(ctx, text) })
 }
 
 func (t *Translator) ExtractTags(ctx context.Context, text string, count int) (provider.TagsResponse, error) {
 	if err := t.ensureProvider(); err != nil {
 		return provider.TagsResponse{}, err
 	}
-	resp, err := t.provider.ExtractTags(ctx, text, count)
+	resp, err := retry(ctx, t, func() (provider.TagsResponse, error) { return t.provider.ExtractTags(ctx, text, count) })
 	resp.Tags = provider.LimitTags(resp.Tags, count)
 	return resp, err
 }
@@ -210,80 +210,87 @@ func (t *Translator) Classify(ctx context.Context, text string) (provider.Classi
 	if err := t.ensureProvider(); err != nil {
 		return provider.ClassifyResponse{}, err
 	}
-	return t.provider.Classify(ctx, text)
+	return retry(ctx, t, func() (provider.ClassifyResponse, error) { return t.provider.Classify(ctx, text) })
 }
 
 func (t *Translator) AnalyzeEmotions(ctx context.Context, text string) (provider.EmotionsResponse, error) {
 	if err := t.ensureProvider(); err != nil {
 		return provider.EmotionsResponse{}, err
 	}
-	return t.provider.AnalyzeEmotions(ctx, text)
+	return retry(ctx, t, func() (provider.EmotionsResponse, error) { return t.provider.AnalyzeEmotions(ctx, text) })
 }
 
 func (t *Translator) AnalyzeFactuality(ctx context.Context, text string) (provider.FactualityResponse, error) {
 	if err := t.ensureProvider(); err != nil {
 		return provider.FactualityResponse{}, err
 	}
-	return t.provider.AnalyzeFactuality(ctx, text)
+	return retry(ctx, t, func() (provider.FactualityResponse, error) { return t.provider.AnalyzeFactuality(ctx, text) })
 }
 
 func (t *Translator) AnalyzeImpact(ctx context.Context, text string) (provider.ImpactResponse, error) {
 	if err := t.ensureProvider(); err != nil {
 		return provider.ImpactResponse{}, err
 	}
-	return t.provider.AnalyzeImpact(ctx, text)
+	return retry(ctx, t, func() (provider.ImpactResponse, error) { return t.provider.AnalyzeImpact(ctx, text) })
 }
 
 func (t *Translator) AnalyzeSensationalism(ctx context.Context, text string) (provider.SensationalismResponse, error) {
 	if err := t.ensureProvider(); err != nil {
 		return provider.SensationalismResponse{}, err
 	}
-	return t.provider.AnalyzeSensationalism(ctx, text)
+	return retry(ctx, t, func() (provider.SensationalismResponse, error) { return t.provider.AnalyzeSensationalism(ctx, text) })
 }
 
 func (t *Translator) ExtractEntities(ctx context.Context, text string) (provider.EntitiesResponse, error) {
 	if err := t.ensureProvider(); err != nil {
 		return provider.EntitiesResponse{}, err
 	}
-	return t.provider.ExtractEntities(ctx, text)
+	return retry(ctx, t, func() (provider.EntitiesResponse, error) { return t.provider.ExtractEntities(ctx, text) })
 }
 
 func (t *Translator) ExtractEvents(ctx context.Context, text string) (provider.EventsResponse, error) {
 	if err := t.ensureProvider(); err != nil {
 		return provider.EventsResponse{}, err
 	}
-	return t.provider.ExtractEvents(ctx, text)
+	return retry(ctx, t, func() (provider.EventsResponse, error) { return t.provider.ExtractEvents(ctx, text) })
 }
 
 func (t *Translator) AnalyzeUsefulness(ctx context.Context, text string) (provider.UsefulnessResponse, error) {
 	if err := t.ensureProvider(); err != nil {
 		return provider.UsefulnessResponse{}, err
 	}
-	return t.provider.AnalyzeUsefulness(ctx, text)
+	return retry(ctx, t, func() (provider.UsefulnessResponse, error) { return t.provider.AnalyzeUsefulness(ctx, text) })
 }
 
 func (t *Translator) AnalyzeTimeFocus(ctx context.Context, text string) (provider.TimeFocusResponse, error) {
 	if err := t.ensureProvider(); err != nil {
 		return provider.TimeFocusResponse{}, err
 	}
-	return t.provider.AnalyzeTimeFocus(ctx, text)
+	return retry(ctx, t, func() (provider.TimeFocusResponse, error) { return t.provider.AnalyzeTimeFocus(ctx, text) })
 }
 
 func (t *Translator) AnalyzeAdDetect(ctx context.Context, text string) (provider.AdDetectResponse, error) {
 	if err := t.ensureProvider(); err != nil {
 		return provider.AdDetectResponse{}, err
 	}
-	return t.provider.AnalyzeAdDetect(ctx, text)
+	return retry(ctx, t, func() (provider.AdDetectResponse, error) { return t.provider.AnalyzeAdDetect(ctx, text) })
 }
 
 func (t *Translator) AnalyzeCombined(ctx context.Context, req provider.CombinedAnalysisRequest) (provider.CombinedAnalysisResponse, error) {
 	if err := t.ensureProvider(); err != nil {
 		return provider.CombinedAnalysisResponse{}, err
 	}
-	return t.provider.AnalyzeCombined(ctx, req)
+	return retry(ctx, t, func() (provider.CombinedAnalysisResponse, error) { return t.provider.AnalyzeCombined(ctx, req) })
 }
 
 func (t *Translator) translateWithRetry(ctx context.Context, req provider.TranslateRequest) (provider.TranslateResponse, error) {
+	return retry(ctx, t, func() (provider.TranslateResponse, error) { return t.provider.Translate(ctx, req) })
+}
+
+// retry calls fn, repeating it with backoff while it fails with a retryable
+// error, at most Settings.RetryCount more times.
+func retry[T any](ctx context.Context, t *Translator, fn func() (T, error)) (T, error) {
+	var zero T
 	var lastErr error
 	retryCount := max(t.config.Settings.RetryCount, 0)
 
@@ -309,11 +316,11 @@ func (t *Translator) translateWithRetry(ctx context.Context, req provider.Transl
 			case <-timer.C:
 			case <-ctx.Done():
 				timer.Stop()
-				return provider.TranslateResponse{}, ctx.Err()
+				return zero, ctx.Err()
 			}
 		}
 
-		resp, err := t.provider.Translate(ctx, req)
+		resp, err := fn()
 		if err == nil {
 			return resp, nil
 		}
@@ -321,7 +328,7 @@ func (t *Translator) translateWithRetry(ctx context.Context, req provider.Transl
 		lastErr = err
 
 		if !isRetryableError(ctx, err) {
-			return provider.TranslateResponse{}, err
+			return zero, err
 		}
 
 		if t.verbose {
@@ -329,7 +336,7 @@ func (t *Translator) translateWithRetry(ctx context.Context, req provider.Transl
 		}
 	}
 
-	return provider.TranslateResponse{}, fmt.Errorf("failed after %d retries: %w", retryCount, lastErr)
+	return zero, fmt.Errorf("failed after %d retries: %w", retryCount, lastErr)
 }
 
 const (
