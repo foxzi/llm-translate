@@ -32,6 +32,13 @@ settings:
   ad_detect: false       # Detect advertising content (direct, native, sponsored, PR)
   parallel_analysis: false  # Analyze the original text in parallel with translation
   api_token: ""          # API server: require "Authorization: Bearer <token>" (--api-token)
+  # summary: 0               # Add a summary of N sentences (0 = off); CLI: --summary, API: "summary"
+  # API server limits and behavior (all off by default)
+  # max_concurrent: 0        # Process at most N requests at once, others wait (0 = no limit)
+  # request_timeout: 0       # Time limit of one request in seconds, 504 on expiry (0 = no limit)
+  # max_text_length: 0       # Reject texts longer than N characters (0 = no limit)
+  # skip_same_language: false  # Do not translate when "from" equals "to"
+  # strict_analysis: false   # Drop analysis values outside the allowed sets
 
 # Strong validation settings (--strong mode)
 strong_validation:
