@@ -148,7 +148,7 @@ func (p *CodexCLIProvider) Translate(ctx context.Context, req TranslateRequest) 
 }
 
 func (p *CodexCLIProvider) AnalyzeSentiment(ctx context.Context, text string) (SentimentResponse, error) {
-	prompt := SentimentPrompt + "\n\n" + text
+	prompt := SentimentPrompt + "\n\n" + wrapText(text)
 
 	result, _, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {
@@ -162,7 +162,7 @@ func (p *CodexCLIProvider) AnalyzeSentiment(ctx context.Context, text string) (S
 }
 
 func (p *CodexCLIProvider) ExtractTags(ctx context.Context, text string, count int) (TagsResponse, error) {
-	prompt := fmt.Sprintf(TagsPromptTemplate, count) + "\n\n" + text
+	prompt := fmt.Sprintf(TagsPromptTemplate, count) + "\n\n" + wrapText(text)
 
 	result, _, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {
@@ -176,7 +176,7 @@ func (p *CodexCLIProvider) ExtractTags(ctx context.Context, text string, count i
 }
 
 func (p *CodexCLIProvider) Classify(ctx context.Context, text string) (ClassifyResponse, error) {
-	prompt := ClassifyPrompt + "\n\n" + text
+	prompt := ClassifyPrompt + "\n\n" + wrapText(text)
 
 	result, _, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {
@@ -190,7 +190,7 @@ func (p *CodexCLIProvider) Classify(ctx context.Context, text string) (ClassifyR
 }
 
 func (p *CodexCLIProvider) AnalyzeEmotions(ctx context.Context, text string) (EmotionsResponse, error) {
-	prompt := EmotionsPrompt + "\n\n" + text
+	prompt := EmotionsPrompt + "\n\n" + wrapText(text)
 
 	result, _, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {
@@ -204,7 +204,7 @@ func (p *CodexCLIProvider) AnalyzeEmotions(ctx context.Context, text string) (Em
 }
 
 func (p *CodexCLIProvider) AnalyzeFactuality(ctx context.Context, text string) (FactualityResponse, error) {
-	prompt := FactualityPrompt + "\n\n" + text
+	prompt := FactualityPrompt + "\n\n" + wrapText(text)
 
 	result, _, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {
@@ -218,7 +218,7 @@ func (p *CodexCLIProvider) AnalyzeFactuality(ctx context.Context, text string) (
 }
 
 func (p *CodexCLIProvider) AnalyzeImpact(ctx context.Context, text string) (ImpactResponse, error) {
-	prompt := ImpactPrompt + "\n\n" + text
+	prompt := ImpactPrompt + "\n\n" + wrapText(text)
 
 	result, _, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {
@@ -232,7 +232,7 @@ func (p *CodexCLIProvider) AnalyzeImpact(ctx context.Context, text string) (Impa
 }
 
 func (p *CodexCLIProvider) AnalyzeSensationalism(ctx context.Context, text string) (SensationalismResponse, error) {
-	prompt := SensationalismPrompt + "\n\n" + text
+	prompt := SensationalismPrompt + "\n\n" + wrapText(text)
 
 	result, _, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {
@@ -246,7 +246,7 @@ func (p *CodexCLIProvider) AnalyzeSensationalism(ctx context.Context, text strin
 }
 
 func (p *CodexCLIProvider) ExtractEntities(ctx context.Context, text string) (EntitiesResponse, error) {
-	prompt := EntitiesPrompt + "\n\n" + text
+	prompt := EntitiesPrompt + "\n\n" + wrapText(text)
 
 	result, _, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {
@@ -260,7 +260,7 @@ func (p *CodexCLIProvider) ExtractEntities(ctx context.Context, text string) (En
 }
 
 func (p *CodexCLIProvider) ExtractEvents(ctx context.Context, text string) (EventsResponse, error) {
-	prompt := EventsPrompt + "\n\n" + text
+	prompt := EventsPrompt + "\n\n" + wrapText(text)
 
 	result, _, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {
@@ -274,7 +274,7 @@ func (p *CodexCLIProvider) ExtractEvents(ctx context.Context, text string) (Even
 }
 
 func (p *CodexCLIProvider) AnalyzeUsefulness(ctx context.Context, text string) (UsefulnessResponse, error) {
-	prompt := UsefulnessPrompt + "\n\n" + text
+	prompt := UsefulnessPrompt + "\n\n" + wrapText(text)
 
 	result, _, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {
@@ -288,7 +288,7 @@ func (p *CodexCLIProvider) AnalyzeUsefulness(ctx context.Context, text string) (
 }
 
 func (p *CodexCLIProvider) AnalyzeAdDetect(ctx context.Context, text string) (AdDetectResponse, error) {
-	prompt := AdDetectPrompt + "\n\n" + text
+	prompt := AdDetectPrompt + "\n\n" + wrapText(text)
 
 	result, _, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {
@@ -302,7 +302,7 @@ func (p *CodexCLIProvider) AnalyzeAdDetect(ctx context.Context, text string) (Ad
 }
 
 func (p *CodexCLIProvider) AnalyzeTimeFocus(ctx context.Context, text string) (TimeFocusResponse, error) {
-	prompt := TimeFocusPrompt + "\n\n" + text
+	prompt := TimeFocusPrompt + "\n\n" + wrapText(text)
 
 	result, _, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {
@@ -316,7 +316,7 @@ func (p *CodexCLIProvider) AnalyzeTimeFocus(ctx context.Context, text string) (T
 }
 
 func (p *CodexCLIProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalysisRequest) (CombinedAnalysisResponse, error) {
-	prompt := BuildCombinedPrompt(req) + "\n\n" + req.Text
+	prompt := BuildCombinedPrompt(req) + "\n\n" + wrapText(req.Text)
 
 	result, _, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {

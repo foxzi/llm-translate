@@ -163,10 +163,14 @@ type completionResponse struct {
 	Error *openAIError `json:"error,omitempty"`
 }
 
+// gemmaTurnMarkers removes control tokens so user text cannot end its turn.
+var gemmaTurnMarkers = strings.NewReplacer("<start_of_turn>", "", "<end_of_turn>", "")
+
 // gemmaComplete sends instruction and text as a single Gemma user turn to
 // /completions, since the TranslateGemma chat template rejects free-form prompts.
 func (p *VLLMProvider) gemmaComplete(ctx context.Context, instruction, text string, temperature float64, maxTokens int) (string, error) {
-	prompt := "<start_of_turn>user\n" + instruction + "\n\n" + text + "<end_of_turn>\n<start_of_turn>model\n"
+	text = gemmaTurnMarkers.Replace(text)
+	prompt := "<start_of_turn>user\n" + instruction + "\n\n" + wrapText(text) + "<end_of_turn>\n<start_of_turn>model\n"
 	jsonData, err := json.Marshal(completionRequest{
 		Model:       p.config.Model,
 		Prompt:      prompt,
