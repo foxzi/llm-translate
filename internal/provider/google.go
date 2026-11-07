@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -142,9 +141,9 @@ func (p *GoogleProvider) Translate(ctx context.Context, req TranslateRequest) (T
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return TranslateResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return TranslateResponse{}, err
 	}
 
 	var googleResp googleResponse
@@ -225,9 +224,9 @@ func (p *GoogleProvider) AnalyzeSentiment(ctx context.Context, text string) (Sen
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return SentimentResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return SentimentResponse{}, err
 	}
 
 	var googleResp googleResponse
@@ -298,9 +297,9 @@ func (p *GoogleProvider) ExtractTags(ctx context.Context, text string, count int
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return TagsResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return TagsResponse{}, err
 	}
 
 	var googleResp googleResponse
@@ -369,9 +368,9 @@ func (p *GoogleProvider) Classify(ctx context.Context, text string) (ClassifyRes
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return ClassifyResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return ClassifyResponse{}, err
 	}
 
 	var googleResp googleResponse
@@ -440,9 +439,9 @@ func (p *GoogleProvider) AnalyzeEmotions(ctx context.Context, text string) (Emot
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return EmotionsResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return EmotionsResponse{}, err
 	}
 
 	var googleResp googleResponse
@@ -511,9 +510,9 @@ func (p *GoogleProvider) AnalyzeFactuality(ctx context.Context, text string) (Fa
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return FactualityResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return FactualityResponse{}, err
 	}
 
 	var googleResp googleResponse
@@ -582,9 +581,9 @@ func (p *GoogleProvider) AnalyzeImpact(ctx context.Context, text string) (Impact
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return ImpactResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return ImpactResponse{}, err
 	}
 
 	var googleResp googleResponse
@@ -653,9 +652,9 @@ func (p *GoogleProvider) AnalyzeSensationalism(ctx context.Context, text string)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return SensationalismResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return SensationalismResponse{}, err
 	}
 
 	var googleResp googleResponse
@@ -724,9 +723,9 @@ func (p *GoogleProvider) ExtractEntities(ctx context.Context, text string) (Enti
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return EntitiesResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return EntitiesResponse{}, err
 	}
 
 	var googleResp googleResponse
@@ -795,9 +794,9 @@ func (p *GoogleProvider) ExtractEvents(ctx context.Context, text string) (Events
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return EventsResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return EventsResponse{}, err
 	}
 
 	var googleResp googleResponse
@@ -866,9 +865,9 @@ func (p *GoogleProvider) AnalyzeUsefulness(ctx context.Context, text string) (Us
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return UsefulnessResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return UsefulnessResponse{}, err
 	}
 
 	var googleResp googleResponse
@@ -937,9 +936,9 @@ func (p *GoogleProvider) AnalyzeAdDetect(ctx context.Context, text string) (AdDe
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return AdDetectResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return AdDetectResponse{}, err
 	}
 
 	var googleResp googleResponse
@@ -1008,9 +1007,9 @@ func (p *GoogleProvider) AnalyzeTimeFocus(ctx context.Context, text string) (Tim
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return TimeFocusResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return TimeFocusResponse{}, err
 	}
 
 	var googleResp googleResponse
@@ -1081,9 +1080,9 @@ func (p *GoogleProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalys
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return CombinedAnalysisResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return CombinedAnalysisResponse{}, err
 	}
 
 	var googleResp googleResponse

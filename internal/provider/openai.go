@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -131,9 +130,9 @@ func (p *OpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (T
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return TranslateResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return TranslateResponse{}, err
 	}
 
 	var openAIResp openAIResponse
@@ -202,9 +201,9 @@ func (p *OpenAIProvider) AnalyzeSentiment(ctx context.Context, text string) (Sen
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return SentimentResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return SentimentResponse{}, err
 	}
 
 	var openAIResp openAIResponse
@@ -263,9 +262,9 @@ func (p *OpenAIProvider) ExtractTags(ctx context.Context, text string, count int
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return TagsResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return TagsResponse{}, err
 	}
 
 	var openAIResp openAIResponse
@@ -322,9 +321,9 @@ func (p *OpenAIProvider) Classify(ctx context.Context, text string) (ClassifyRes
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return ClassifyResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return ClassifyResponse{}, err
 	}
 
 	var openAIResp openAIResponse
@@ -381,9 +380,9 @@ func (p *OpenAIProvider) AnalyzeEmotions(ctx context.Context, text string) (Emot
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return EmotionsResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return EmotionsResponse{}, err
 	}
 
 	var openAIResp openAIResponse
@@ -440,9 +439,9 @@ func (p *OpenAIProvider) AnalyzeFactuality(ctx context.Context, text string) (Fa
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return FactualityResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return FactualityResponse{}, err
 	}
 
 	var openAIResp openAIResponse
@@ -499,9 +498,9 @@ func (p *OpenAIProvider) AnalyzeImpact(ctx context.Context, text string) (Impact
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return ImpactResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return ImpactResponse{}, err
 	}
 
 	var openAIResp openAIResponse
@@ -558,9 +557,9 @@ func (p *OpenAIProvider) AnalyzeSensationalism(ctx context.Context, text string)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return SensationalismResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return SensationalismResponse{}, err
 	}
 
 	var openAIResp openAIResponse
@@ -617,9 +616,9 @@ func (p *OpenAIProvider) ExtractEntities(ctx context.Context, text string) (Enti
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return EntitiesResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return EntitiesResponse{}, err
 	}
 
 	var openAIResp openAIResponse
@@ -676,9 +675,9 @@ func (p *OpenAIProvider) ExtractEvents(ctx context.Context, text string) (Events
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return EventsResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return EventsResponse{}, err
 	}
 
 	var openAIResp openAIResponse
@@ -735,9 +734,9 @@ func (p *OpenAIProvider) AnalyzeUsefulness(ctx context.Context, text string) (Us
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return UsefulnessResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return UsefulnessResponse{}, err
 	}
 
 	var openAIResp openAIResponse
@@ -794,9 +793,9 @@ func (p *OpenAIProvider) AnalyzeAdDetect(ctx context.Context, text string) (AdDe
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return AdDetectResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return AdDetectResponse{}, err
 	}
 
 	var openAIResp openAIResponse
@@ -853,9 +852,9 @@ func (p *OpenAIProvider) AnalyzeTimeFocus(ctx context.Context, text string) (Tim
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return TimeFocusResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return TimeFocusResponse{}, err
 	}
 
 	var openAIResp openAIResponse
@@ -908,9 +907,9 @@ func (p *OpenAIProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalys
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return CombinedAnalysisResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return CombinedAnalysisResponse{}, err
 	}
 
 	var openAIResp openAIResponse

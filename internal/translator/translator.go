@@ -2,7 +2,10 @@ package translator
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -312,7 +315,7 @@ func (t *Translator) translateWithRetry(ctx context.Context, req provider.Transl
 
 		lastErr = err
 
-		if !isRetryableError(err) {
+		if !isRetryableError(ctx, err) {
 			return provider.TranslateResponse{}, err
 		}
 
@@ -517,7 +520,30 @@ func replaceAllCaseInsensitive(text, old, new_ string) string {
 	return result.String()
 }
 
-func isRetryableError(err error) bool {
+// isRetryableError reports whether a failed request is worth repeating.
+// ctx is the caller's context: a cancelled or expired parent is never retried.
+func isRetryableError(ctx context.Context, err error) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+
+	var httpErr *provider.HTTPError
+	if errors.As(err, &httpErr) {
+		switch httpErr.StatusCode {
+		case http.StatusTooManyRequests, http.StatusInternalServerError, http.StatusBadGateway,
+			http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+			return true
+		}
+		return false
+	}
+
+	// Network errors and client timeouts (the parent ctx is still alive here).
+	var netErr net.Error
+	if errors.As(err, &netErr) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+
+	// Fallback for providers that do not return typed errors (CLI providers).
 	errStr := err.Error()
 	return strings.Contains(errStr, "rate limit") ||
 		strings.Contains(errStr, "429") ||

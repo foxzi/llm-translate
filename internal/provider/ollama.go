@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -111,9 +110,9 @@ func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (T
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return TranslateResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return TranslateResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse
@@ -183,9 +182,9 @@ func (p *OllamaProvider) AnalyzeSentiment(ctx context.Context, text string) (Sen
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return SentimentResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return SentimentResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse
@@ -233,9 +232,9 @@ func (p *OllamaProvider) ExtractTags(ctx context.Context, text string, count int
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return TagsResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return TagsResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse
@@ -281,9 +280,9 @@ func (p *OllamaProvider) Classify(ctx context.Context, text string) (ClassifyRes
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return ClassifyResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return ClassifyResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse
@@ -329,9 +328,9 @@ func (p *OllamaProvider) AnalyzeEmotions(ctx context.Context, text string) (Emot
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return EmotionsResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return EmotionsResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse
@@ -377,9 +376,9 @@ func (p *OllamaProvider) AnalyzeFactuality(ctx context.Context, text string) (Fa
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return FactualityResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return FactualityResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse
@@ -425,9 +424,9 @@ func (p *OllamaProvider) AnalyzeImpact(ctx context.Context, text string) (Impact
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return ImpactResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return ImpactResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse
@@ -473,9 +472,9 @@ func (p *OllamaProvider) AnalyzeSensationalism(ctx context.Context, text string)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return SensationalismResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return SensationalismResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse
@@ -521,9 +520,9 @@ func (p *OllamaProvider) ExtractEntities(ctx context.Context, text string) (Enti
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return EntitiesResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return EntitiesResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse
@@ -569,9 +568,9 @@ func (p *OllamaProvider) ExtractEvents(ctx context.Context, text string) (Events
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return EventsResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return EventsResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse
@@ -617,9 +616,9 @@ func (p *OllamaProvider) AnalyzeUsefulness(ctx context.Context, text string) (Us
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return UsefulnessResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return UsefulnessResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse
@@ -665,9 +664,9 @@ func (p *OllamaProvider) AnalyzeAdDetect(ctx context.Context, text string) (AdDe
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return AdDetectResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return AdDetectResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse
@@ -713,9 +712,9 @@ func (p *OllamaProvider) AnalyzeTimeFocus(ctx context.Context, text string) (Tim
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return TimeFocusResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return TimeFocusResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse
@@ -763,9 +762,9 @@ func (p *OllamaProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalys
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return CombinedAnalysisResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return CombinedAnalysisResponse{}, err
 	}
 
 	var ollamaResp ollamaResponse

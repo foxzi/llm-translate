@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -126,9 +125,9 @@ func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return TranslateResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return TranslateResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse
@@ -201,9 +200,9 @@ func (p *AnthropicProvider) AnalyzeSentiment(ctx context.Context, text string) (
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return SentimentResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return SentimentResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse
@@ -266,9 +265,9 @@ func (p *AnthropicProvider) ExtractTags(ctx context.Context, text string, count 
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return TagsResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return TagsResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse
@@ -329,9 +328,9 @@ func (p *AnthropicProvider) Classify(ctx context.Context, text string) (Classify
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return ClassifyResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return ClassifyResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse
@@ -392,9 +391,9 @@ func (p *AnthropicProvider) AnalyzeEmotions(ctx context.Context, text string) (E
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return EmotionsResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return EmotionsResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse
@@ -455,9 +454,9 @@ func (p *AnthropicProvider) AnalyzeFactuality(ctx context.Context, text string) 
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return FactualityResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return FactualityResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse
@@ -518,9 +517,9 @@ func (p *AnthropicProvider) AnalyzeImpact(ctx context.Context, text string) (Imp
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return ImpactResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return ImpactResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse
@@ -581,9 +580,9 @@ func (p *AnthropicProvider) AnalyzeSensationalism(ctx context.Context, text stri
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return SensationalismResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return SensationalismResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse
@@ -644,9 +643,9 @@ func (p *AnthropicProvider) ExtractEntities(ctx context.Context, text string) (E
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return EntitiesResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return EntitiesResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse
@@ -707,9 +706,9 @@ func (p *AnthropicProvider) ExtractEvents(ctx context.Context, text string) (Eve
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return EventsResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return EventsResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse
@@ -770,9 +769,9 @@ func (p *AnthropicProvider) AnalyzeUsefulness(ctx context.Context, text string) 
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return UsefulnessResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return UsefulnessResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse
@@ -833,9 +832,9 @@ func (p *AnthropicProvider) AnalyzeAdDetect(ctx context.Context, text string) (A
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return AdDetectResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return AdDetectResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse
@@ -896,9 +895,9 @@ func (p *AnthropicProvider) AnalyzeTimeFocus(ctx context.Context, text string) (
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return TimeFocusResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return TimeFocusResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse
@@ -961,9 +960,9 @@ func (p *AnthropicProvider) AnalyzeCombined(ctx context.Context, req CombinedAna
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return CombinedAnalysisResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return CombinedAnalysisResponse{}, err
 	}
 
 	var anthropicResp anthropicResponse

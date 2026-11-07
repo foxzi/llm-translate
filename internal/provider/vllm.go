@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -117,9 +116,9 @@ func (p *VLLMProvider) translateGemma(ctx context.Context, req TranslateRequest)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return TranslateResponse{}, fmt.Errorf("failed to read response: %w", err)
+		return TranslateResponse{}, err
 	}
 
 	var apiResp openAIResponse
@@ -194,9 +193,9 @@ func (p *VLLMProvider) gemmaComplete(ctx context.Context, instruction, text stri
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readResponse(resp)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
+		return "", err
 	}
 
 	var apiResp completionResponse
