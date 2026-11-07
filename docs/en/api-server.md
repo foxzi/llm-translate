@@ -21,8 +21,8 @@ cp config.example.yaml config.yaml   # set provider, model and analyses
 docker compose up -d --build
 ```
 
-`docker-compose.yml` mounts `./config.yaml` to `/config.yaml` and publishes
-port 8080. To pass extra flags, override `command`:
+`docker-compose.yml` mounts `./config.yaml` read-only to `/config.yaml`, publishes
+port 8080 and restarts the container (`unless-stopped`). To pass extra flags, override `command`:
 
 ```yaml
 command: ["--api", "-c", "/config.yaml", "--parallel-analysis", "--tags", "5"]
@@ -43,7 +43,8 @@ curl -s -X POST localhost:8080/v1/translate \
   -d '{"text":"Hello","from":"en","to":"ru"}'
 ```
 
-A missing or wrong token returns 401 `{"error":"unauthorized","code":"unauthorized"}`.
+The header must be exactly `Authorization: Bearer <token>` (the `Bearer ` prefix
+is case-sensitive). A missing or wrong token returns 401 `{"error":"unauthorized","code":"unauthorized"}`.
 `GET /health` stays open. Without a token the server accepts any request and
 logs a warning at start.
 
@@ -67,9 +68,9 @@ Request:
 |-------------|----------|-------------|
 | `text`      | yes      | Text to translate (or to analyze, see `translate`) |
 | `from`      | no       | Source language; defaults to `--from` (`auto`) |
-| `to`        | no       | Target language; defaults to `default_target_language` |
+| `to`        | no       | Target language; defaults to `default_target_language` (`--to` replaces it when set explicitly, `en` if neither is set) |
 | `title`     | no       | Title. Translated together with the text, returned in `title` and analyzed together with the text |
-| `translate` | no       | Boolean, default `true`. With `false` the text is not translated and is returned as is; only the analyses run |
+| `translate` | no       | Boolean, default `true`. With `false` the text and the title are not translated and are returned as is; only the analyses run |
 | `analysis`  | no       | List of analysis names. Replaces the analyses enabled in the config; an empty list `[]` disables all of them |
 | `tags`      | no       | Number of tags to extract; overrides `tags_count`. `0` disables tags |
 | `summary`   | no       | Summary length in sentences; overrides `settings.summary`. `0` disables the summary |
@@ -167,7 +168,7 @@ Every error is a JSON object with the keys `error` (message), `code` and, for
 
 | Status | `code`            | When |
 |--------|-------------------|------|
-| 400    | `invalid_request` | Invalid JSON or body above 10 MiB, empty `text`, `text` longer than `max_text_length`, unknown `analysis` name, negative `tags` or `summary` |
+| 400    | `invalid_request` | Invalid JSON or body above 10 MiB, empty or whitespace-only `text`, `text` longer than `max_text_length`, unknown `analysis` name, negative `tags` or `summary` |
 | 401    | `unauthorized`    | Missing or wrong token |
 | 429    | `rate_limited`    | The provider answered 429. The `Retry-After` header is set when the provider sent it |
 | 504    | `timeout`         | `request_timeout` expired (also while waiting for a `max_concurrent` slot) |
@@ -180,6 +181,9 @@ Every error is a JSON object with the keys `error` (message), `code` and, for
 ```json
 {"error":"text is too long: 12034 characters, limit 10000","code":"invalid_request"}
 ```
+
+Other paths and methods are answered by the Go HTTP server with a plain-text
+404 or 405 (for example `GET /v1/translate` is 405), not with a JSON error.
 
 ## Settings
 
@@ -203,13 +207,16 @@ have no CLI flag, except `summary` (`--summary`).
   `sensationalism_confidence`, `time_focus_confidence`, `ad_confidence`).
 - In the lists `topics`, `scope`, `news_type`, `affected` and
   `factuality_evidence` unknown items are removed; an empty list is removed.
-- In `emotions` unknown names and scores outside 0..1 are removed.
+- In `emotions` unknown names and scores outside 0..1 are removed; an empty
+  object is removed.
 
 Valid values are kept unchanged.
 
 ## Notes
 
 - Requests are processed concurrently; each one gets its own translator.
+- On SIGINT/SIGTERM the server shuts down gracefully, waiting up to 10 seconds
+  for active requests.
 - The token is sent in plain text over HTTP. When exposing the server outside
   a private network, put it behind a reverse proxy with TLS.
 - TranslateGemma needs an explicit `from` in every request (or `--from` at
