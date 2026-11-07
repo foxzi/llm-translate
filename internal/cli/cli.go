@@ -713,8 +713,8 @@ func runTranslate(ctx context.Context, cmd *cobra.Command) error {
 		Temperature:    temperature,
 		MaxTokens:      maxTokens,
 		PreserveFormat: preserveFormat,
-		StrongMode:     strongMode,
-		StrongRetries:  strongRetries,
+		StrongMode:     cfg.StrongValidation.Enabled,
+		StrongRetries:  cfg.StrongValidation.MaxRetries,
 	}
 
 	if glossaryFile != "" {
@@ -1178,8 +1178,8 @@ func translateFile(ctx context.Context, t *translator.Translator, cfg *config.Co
 		Temperature:    temperature,
 		MaxTokens:      maxTokens,
 		PreserveFormat: preserveFormat,
-		StrongMode:     strongMode,
-		StrongRetries:  strongRetries,
+		StrongMode:     cfg.StrongValidation.Enabled,
+		StrongRetries:  cfg.StrongValidation.MaxRetries,
 		Glossary:       glossary,
 	}
 

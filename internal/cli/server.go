@@ -208,8 +208,8 @@ func handleTranslate(w http.ResponseWriter, r *http.Request, in apiRequest, cfg 
 		Temperature:    cfg.Settings.Temperature,
 		MaxTokens:      cfg.Settings.MaxTokens,
 		PreserveFormat: cfg.Settings.PreserveFormat,
-		StrongMode:     strongMode,
-		StrongRetries:  strongRetries,
+		StrongMode:     cfg.StrongValidation.Enabled,
+		StrongRetries:  cfg.StrongValidation.MaxRetries,
 	}
 	doTranslate := in.Translate == nil || *in.Translate
 	if cfg.Settings.SkipSameLanguage && strings.EqualFold(from, to) {

@@ -139,3 +139,25 @@ func TestAPIBodyReadBeforeSlot(t *testing.T) {
 		t.Errorf("status %d: the stalled request holds the slot", resp.StatusCode)
 	}
 }
+
+// The fake LLM echoes the text, so with strong validation on an English
+// source that has many common words counts as untranslated.
+func TestAPIStrongValidationFromConfig(t *testing.T) {
+	body := `{"text":"the quick fox and the dog that will see this one with all of it","from":"en","to":"de","analysis":[]}`
+	for _, enabled := range []bool{false, true} {
+		f := newFakeLLM(t)
+		cfg := testConfig(t, f, "openai", "gpt-test")
+		cfg.StrongValidation.Enabled = enabled
+		cfg.StrongValidation.MaxRetries = 1
+		cfg.Settings.RetryCount = 0
+
+		code, out := postTranslate(t, cfg, "", body)
+		want := http.StatusOK
+		if enabled {
+			want = http.StatusBadGateway
+		}
+		if code != want {
+			t.Errorf("enabled=%v: status %d, want %d: %s", enabled, code, want, out)
+		}
+	}
+}
