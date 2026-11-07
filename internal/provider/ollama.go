@@ -34,6 +34,7 @@ type ollamaResponse struct {
 	CreatedAt          string `json:"created_at"`
 	Response           string `json:"response"`
 	Done               bool   `json:"done"`
+	DoneReason         string `json:"done_reason,omitempty"`
 	Context            []int  `json:"context,omitempty"`
 	TotalDuration      int64  `json:"total_duration,omitempty"`
 	LoadDuration       int64  `json:"load_duration,omitempty"`
@@ -133,8 +134,13 @@ func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (T
 		tokensUsed = ollamaResp.PromptEvalCount + ollamaResp.EvalCount
 	}
 
+	text, err := checkTranslation(ollamaResp.Response, ollamaResp.DoneReason)
+	if err != nil {
+		return TranslateResponse{}, err
+	}
+
 	return TranslateResponse{
-		Text:       ollamaResp.Response,
+		Text:       text,
 		TokensUsed: tokensUsed,
 	}, nil
 }

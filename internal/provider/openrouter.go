@@ -140,8 +140,13 @@ func (p *OpenRouterProvider) Translate(ctx context.Context, req TranslateRequest
 		return TranslateResponse{}, fmt.Errorf("no choices in response")
 	}
 
+	text, err := checkTranslation(openRouterResp.Choices[0].Message.Content, openRouterResp.Choices[0].FinishReason)
+	if err != nil {
+		return TranslateResponse{}, err
+	}
+
 	return TranslateResponse{
-		Text:       openRouterResp.Choices[0].Message.Content,
+		Text:       text,
 		TokensUsed: openRouterResp.Usage.TotalTokens,
 	}, nil
 }

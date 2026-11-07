@@ -161,6 +161,11 @@ func (p *CodexCLIProvider) Translate(ctx context.Context, req TranslateRequest) 
 		}
 	}
 
+	result, err = checkTranslation(result, "")
+	if err != nil {
+		return TranslateResponse{}, err
+	}
+
 	return TranslateResponse{
 		Text:       result,
 		TokensUsed: tokensUsed,

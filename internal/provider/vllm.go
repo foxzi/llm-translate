@@ -139,8 +139,13 @@ func (p *VLLMProvider) translateGemma(ctx context.Context, req TranslateRequest)
 		return TranslateResponse{}, fmt.Errorf("no choices in response")
 	}
 
+	text, err := checkTranslation(apiResp.Choices[0].Message.Content, apiResp.Choices[0].FinishReason)
+	if err != nil {
+		return TranslateResponse{}, err
+	}
+
 	return TranslateResponse{
-		Text:       strings.TrimSpace(apiResp.Choices[0].Message.Content),
+		Text:       strings.TrimSpace(text),
 		TokensUsed: apiResp.Usage.TotalTokens,
 	}, nil
 }

@@ -673,6 +673,22 @@ type BaseProvider struct {
 	httpClient *http.Client
 }
 
+// checkTranslation rejects a translation that was cut off by the token limit
+// or came back empty.
+func checkTranslation(text, finishReason string) (string, error) {
+	switch finishReason {
+	case "length", "max_tokens", "MAX_TOKENS":
+		return "", fmt.Errorf("response truncated (finish_reason=%s), increase max_tokens", finishReason)
+	}
+	if strings.TrimSpace(text) == "" {
+		if finishReason != "" {
+			return "", fmt.Errorf("empty response from model (finish_reason=%s)", finishReason)
+		}
+		return "", fmt.Errorf("empty response from model")
+	}
+	return text, nil
+}
+
 func (b *BaseProvider) Name() string {
 	return b.name
 }

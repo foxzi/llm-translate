@@ -155,6 +155,11 @@ func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest)
 		}
 	}
 
+	translatedText, err = checkTranslation(translatedText, anthropicResp.StopReason)
+	if err != nil {
+		return TranslateResponse{}, err
+	}
+
 	return TranslateResponse{
 		Text:       translatedText,
 		TokensUsed: anthropicResp.Usage.InputTokens + anthropicResp.Usage.OutputTokens,

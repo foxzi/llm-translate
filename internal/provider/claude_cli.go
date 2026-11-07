@@ -117,6 +117,11 @@ func (p *ClaudeCLIProvider) Translate(ctx context.Context, req TranslateRequest)
 		return TranslateResponse{}, err
 	}
 
+	result, err = checkTranslation(result, "")
+	if err != nil {
+		return TranslateResponse{}, err
+	}
+
 	return TranslateResponse{
 		Text: result,
 	}, nil

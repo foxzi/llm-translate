@@ -169,6 +169,11 @@ func (p *GoogleProvider) Translate(ctx context.Context, req TranslateRequest) (T
 		translatedText += part.Text
 	}
 
+	translatedText, err = checkTranslation(translatedText, googleResp.Candidates[0].FinishReason)
+	if err != nil {
+		return TranslateResponse{}, err
+	}
+
 	return TranslateResponse{
 		Text:       translatedText,
 		TokensUsed: googleResp.UsageMetadata.TotalTokenCount,

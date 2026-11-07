@@ -153,8 +153,13 @@ func (p *OpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (T
 		return TranslateResponse{}, fmt.Errorf("no choices in response")
 	}
 
+	text, err := checkTranslation(openAIResp.Choices[0].Message.Content, openAIResp.Choices[0].FinishReason)
+	if err != nil {
+		return TranslateResponse{}, err
+	}
+
 	return TranslateResponse{
-		Text:       openAIResp.Choices[0].Message.Content,
+		Text:       text,
 		TokensUsed: openAIResp.Usage.TotalTokens,
 	}, nil
 }
