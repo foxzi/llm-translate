@@ -15,6 +15,9 @@ type Config struct {
 	Providers             map[string]ProviderConfig `yaml:"providers"`
 	Prompts               Prompts                   `yaml:"prompts"`
 	Glossary              []GlossaryEntry           `yaml:"glossary"`
+
+	// Warnings collected while loading, e.g. unknown keys.
+	Warnings []string `yaml:"-"`
 }
 
 type Settings struct {

@@ -630,6 +630,12 @@ func runTranslate(ctx context.Context, cmd *cobra.Command) error {
 
 	applyCLIOverrides(cmd, cfg)
 
+	if apiMode || verbose {
+		for _, w := range cfg.Warnings {
+			logWarn("%s", w)
+		}
+	}
+
 	if apiMode {
 		var glossary []config.GlossaryEntry
 		if glossaryFile != "" {

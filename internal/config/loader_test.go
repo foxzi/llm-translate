@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -35,6 +36,9 @@ func TestLoadNewsPortalConfig(t *testing.T) {
 	if cfg.Providers["openai"].APIKey != "s3cret" {
 		t.Errorf("env vars are not expanded in api_key")
 	}
+	if len(cfg.Warnings) != 1 || !strings.Contains(cfg.Warnings[0], "batch_analysis") {
+		t.Errorf("warnings = %q", cfg.Warnings)
+	}
 	if len(cfg.Providers) != 7 || len(cfg.Glossary) != 2 || cfg.StrongValidation.Enabled {
 		t.Errorf("providers=%d glossary=%d strong=%v", len(cfg.Providers), len(cfg.Glossary), cfg.StrongValidation.Enabled)
 	}
@@ -50,6 +54,9 @@ func TestLoadDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	def := DefaultConfig()
+	if len(cfg.Warnings) != 0 {
+		t.Errorf("warnings = %q", cfg.Warnings)
+	}
 	if cfg.Settings != def.Settings || cfg.DefaultTargetLanguage != "en" {
 		t.Errorf("defaults changed: %+v", cfg.Settings)
 	}

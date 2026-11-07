@@ -1,6 +1,8 @@
 package config
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -49,7 +51,26 @@ func loadFromFile(path string, cfg *Config) error {
 		return err
 	}
 
+	cfg.Warnings = append(cfg.Warnings, unknownKeys(data)...)
 	return nil
+}
+
+// unknownKeys returns a message for every key that does not match a config
+// field. Such keys are ignored by Load.
+func unknownKeys(data []byte) []string {
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	var typeErr *yaml.TypeError
+	if err := dec.Decode(DefaultConfig()); !errors.As(err, &typeErr) {
+		return nil
+	}
+	var out []string
+	for _, msg := range typeErr.Errors {
+		if strings.Contains(msg, "not found in type") {
+			out = append(out, "unknown config key ignored: "+msg)
+		}
+	}
+	return out
 }
 
 func expandEnvVarsInConfig(cfg *Config) {
