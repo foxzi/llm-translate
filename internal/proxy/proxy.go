@@ -45,7 +45,7 @@ func NewHTTPClient(cfg config.ProxyConfig, timeoutSeconds ...int) (*http.Client,
 	switch proxyURL.Scheme {
 	case "http", "https":
 		transport.Proxy = func(req *http.Request) (*url.URL, error) {
-			if shouldBypassProxy(req.URL.Host, cfg.NoProxy) {
+			if shouldBypassProxy(req.URL.Hostname(), cfg.NoProxy) {
 				return nil, nil
 			}
 			return proxyURL, nil
