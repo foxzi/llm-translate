@@ -69,11 +69,12 @@ llm-translate -p qwen-cli -i text.txt -t ru
 
 ### Configuration File
 
-Create a configuration file at `~/.config/llm-translate/config.yaml`:
+Create a configuration file, for example at `~/.config/llm-translate/config.yaml`
+(see `--config` below for all searched locations):
 
 ```yaml
 default_provider: openai
-default_target_language: ru
+default_target_language: ru   # used only in --api mode (CLI/file mode uses --to, default en)
 
 settings:
   # LLM generation settings
@@ -99,12 +100,26 @@ settings:
   time_focus: false         # Analyze temporal focus (past/present/future) and detect predictions
   ad_detect: false          # Detect advertising content (direct, native, sponsored, PR)
   parallel_analysis: false  # Analyze the original text in parallel with translation
+  summary: 0                # Add a summary of N sentences (0 = disabled)
+
+  # API server settings (--api), see docs/en/api-server.md (docs/ru/api-server.md in Russian)
+  api_token: ""             # Require "Authorization: Bearer <token>" (--api-token)
+  # max_concurrent: 0       # Process at most N requests at once (0 = no limit)
+  # request_timeout: 0      # Time limit of one request in seconds (0 = no limit)
+  # max_text_length: 0      # Reject texts longer than N characters (0 = no limit)
+  # skip_same_language: false  # Do not translate when "from" equals "to"
+  # strict_analysis: false  # Drop analysis values outside the allowed sets
 
 providers:
   openai:
     api_key: ${OPENAI_API_KEY}
     base_url: https://api.openai.com/v1
     model: gpt-4o-mini
+    # proxy:                    # per-provider proxy, takes precedence over the global one
+    #   url: socks5://proxy.example.com:1080
+    #   username: ${PROXY_USER}
+    #   password: ${PROXY_PASS}
+    #   no_proxy: [localhost]
     
   anthropic:
     api_key: ${ANTHROPIC_API_KEY}
@@ -162,17 +177,44 @@ proxy:
   no_proxy:
     - localhost
     - 127.0.0.1
+
+# Prompt templates (parsed, but not used by the current code)
+prompts:
+  system: "You are a professional translator. Translate from {source_lang} to {target_lang}."
+  styles:
+    formal: "Use formal language."
+
+# Glossary (parsed, but not used by the current code: use --glossary <file>)
+glossary:
+  - term: "API"
+    translation: "API"
+    note: "do not translate"
 ```
+
+Notes:
+
+- The first existing file from the search list is used; files are not merged.
+- Unknown keys in the config file are ignored. They are logged as warnings
+  ("unknown config key ignored: ...") in `--api` mode and with `--verbose`.
+- `${VAR}` in provider `api_key`, `base_url`, `model`, `proxy.*` and in the
+  global `proxy.url`, `proxy.username`, `proxy.password` is expanded from the
+  environment.
+- `chat_template_kwargs` is supported only by the `openai` and `vllm`
+  providers.
+- `proxy.username` and `proxy.password` are applied only when both are set.
+- The proxy of the selected provider (`providers.<name>.proxy`) is used if its
+  `url` is set, otherwise the global `proxy`.
 
 ### Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `LLM_TRANSLATE_CONFIG` | Path to configuration file |
-| `LLM_TRANSLATE_PROVIDER` | Default provider |
-| `LLM_TRANSLATE_MODEL` | Default model |
-| `LLM_TRANSLATE_PROXY` | Proxy URL |
-| `OPENAI_API_KEY` | OpenAI API key |
+| `LLM_TRANSLATE_PROVIDER` | Default provider (overrides `default_provider`) |
+| `LLM_TRANSLATE_MODEL` | Model of the default provider (applied only if that provider is present in the config) |
+| `LLM_TRANSLATE_PROXY` | Proxy URL; overrides `proxy.url` from the config |
+| `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY` | Proxy URL, used if `LLM_TRANSLATE_PROXY` is not set; checked in this order, the first non-empty wins, and overrides `proxy.url` from the config |
+| `NO_PROXY` | Comma-separated hosts that bypass the proxy (`*`, `*.example.com` and other `*` globs are supported); replaces `proxy.no_proxy` from the config |
+| `OPENAI_API_KEY` | OpenAI API key (the provider is created with its default base URL and model if it is absent from the config; the same for the three keys below) |
 | `ANTHROPIC_API_KEY` | Anthropic API key |
 | `GOOGLE_API_KEY` | Google API key |
 | `OPENROUTER_API_KEY` | OpenRouter API key |
@@ -185,20 +227,25 @@ proxy:
 | `--output` | `-o` | Output file | stdout |
 | `--dir` | `-d` | Input directory for recursive translation | - |
 | `--ext` | | File extensions to translate | .md,.txt |
-| `--suffix` | | Output file suffix (e.g., _ru) | _\<lang\> |
+| `--suffix` | | Output file suffix (e.g., _ru) | empty (`_<lang>` is used when neither suffix nor prefix is set) |
 | `--prefix` | | Output file prefix (e.g., ru_) | - |
 | `--from` | `-f` | Source language | auto |
-| `--to` | `-t` | Target language | en |
+| `--to` | `-t` | Target language | en (used for files, directories and stdin; `default_target_language` from the config applies only in `--api` mode when a request has no `to`, and an explicit `--to` overrides it there) |
 | `--provider` | `-p` | LLM provider | from config |
 | `--model` | `-m` | Model to use | from config |
-| `--config` | `-c` | Config file path | ~/.config/llm-translate/config.yaml |
+| `--config` | `-c` | Config file path; if set and the file does not exist, it is an error | first existing of `./llm-translate.yaml`, `~/.config/llm-translate/config.yaml`, `/etc/llm-translate/config.yaml` |
 | `--api-key` | `-k` | API key | from config |
+| `--base-url` | `-u` | Base URL of the provider API (for CLI providers: path to the binary) | from config |
+| `--timeout` | | Request timeout in seconds | 60 |
+| `--chunk-size` | | Chunk size for long texts (characters) | 3000 |
 | `--temperature` | | Generation temperature | 0.3 |
 | `--max-tokens` | | Max response tokens | 4096 |
-| `--style` | | Translation style | - |
+| `--context` | | Additional context for translation | - |
+| `--style` | | Translation style: formal, informal, technical, literary | - |
 | `--glossary` | `-g` | Glossary file | - |
 | `--preserve-format` | | Keep formatting | false |
 | `--strong` | `-s` | Strong validation mode | false |
+| `--strong-retries` | | Number of retries for strong mode | 3 |
 | `--sentiment` | | Analyze sentiment of translated text | false |
 | `--tags` | | Extract N tags from text (0 to disable) | 0 |
 | `--classify` | | Classify text by topics, scope, and type | false |
@@ -213,10 +260,13 @@ proxy:
 | `--ad-detect` | | Detect advertising content (direct, native, sponsored, PR) | false |
 | `--parallel-analysis` | | Analyze the original text in parallel with translation (results in target language) | false |
 | `--summary` | | Add a summary of N sentences to frontmatter (0 to disable) | 0 |
-| `--verbose` | | Verbose output | false |
-| `--version` | `-v` | Show version | - |
-| `--quiet` | `-q` | Quiet mode | false |
-| `--proxy` | `-x` | Proxy server | from config |
+| `--verbose` | | Verbose output (also prints config warnings) | false |
+| `--dry-run` | | Print the request configuration without sending it (single-input mode only) | false |
+| `--version` | `-v` | Show version (the `version` subcommand does the same) | - |
+| `--quiet` | `-q` | Quiet mode (only result) | false |
+| `--proxy` | `-x` | Proxy server URL | from config |
+| `--proxy-auth` | | Proxy authentication (`user:pass`); the flag is accepted but currently has no effect, use `proxy.username`/`proxy.password` | - |
+| `--no-proxy` | | Clear the global proxy (from the config or the environment); a per-provider `proxy` is not affected | false |
 | `--api` | | Run as HTTP API server | false |
 | `--listen` | | API server listen address | :8080 |
 | `--api-token` | | Bearer token required by API server | from config |
@@ -260,7 +310,7 @@ llm-translate -i docs.md -o docs_ru.md -t ru --style technical
 
 ### Using Glossaries
 
-Create a glossary file `terms.yaml`:
+Create a glossary file `terms.yaml` with a top-level `terms` list:
 
 ```yaml
 terms:
@@ -269,7 +319,23 @@ terms:
   - source: "API"
     target: "API"
     note: "не переводить"
+  - term: "Python"            # term/translation are aliases of source/target
+    translation: "Python"
+    case_sensitive: true
 ```
+
+Entry fields:
+
+| Field | Description |
+|-------|-------------|
+| `source` (alias `term`) | Source term; `source` wins if both are set |
+| `target` (alias `translation`) | Required translation; `target` wins if both are set |
+| `note` | Optional comment, added to the prompt in parentheses |
+| `case_sensitive` | Affects the post-processing step only: a source term left in the translated text is replaced with the target, matching case if `true`, ignoring case otherwise |
+| `context` | Accepted in the file, but not used by the current code |
+
+Entries without both a source and a target are skipped. The `glossary:` key in
+the main config file is not used; pass the file with `--glossary`.
 
 Use it in translation:
 
@@ -567,6 +633,12 @@ curl -s -X POST localhost:8080/v1/translate \
 # {"text":"Привет, мир","analysis":{...}}
 ```
 
+The image is built from `Dockerfile` (Go 1.25, static binary at
+`/usr/local/bin/llm-translate`, `ENTRYPOINT ["llm-translate"]`, default
+`CMD ["--api", "-c", "/config.yaml"]`, port 8080). `docker-compose.yml` mounts
+`./config.yaml` read-only to `/config.yaml`, publishes `8080:8080` and sets
+`restart: unless-stopped`.
+
 Without Docker: `llm-translate --api --listen :8080 -c config.yaml`.
 Details: [docs/en/api-server.md](docs/en/api-server.md)
 ([на русском](docs/ru/api-server.md)).
@@ -633,23 +705,20 @@ Use standard ISO 639-1 codes:
 
 ## Error Codes
 
+The program uses only two exit codes. Any error (invalid arguments, config,
+input or output file, provider, validation failure, timeout) prints
+`Error: <message>` to stderr and exits with 1.
+
 | Code | Description |
 |------|-------------|
 | 0 | Success |
-| 1 | Invalid arguments |
-| 2 | Configuration error |
-| 3 | Input file error |
-| 4 | Output file error |
-| 5 | API error |
-| 6 | Token limit exceeded |
-| 7 | Timeout |
-| 8 | Strong validation failed |
+| 1 | Any error |
 
 ## Building from Source
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.25 or later (`go 1.25.0` in `go.mod`)
 - Make (optional)
 
 ### Build
@@ -661,9 +730,16 @@ make build
 # Or directly with go
 go build -o bin/llm-translate cmd/llm-translate/main.go
 
+# Set the version shown by --version
+make build VERSION=1.0.0
+
 # Build for all platforms
 make build-all
 ```
+
+`make build` writes the binary to `bin/llm-translate`; `make build-all` writes
+`bin/llm-translate-<os>-<arch>` for linux and darwin (amd64, arm64) and
+windows (amd64, `.exe`). Run `make help` for all targets.
 
 ### Running Tests
 
