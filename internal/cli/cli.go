@@ -920,59 +920,55 @@ func truncateText(text string, maxLen int) string {
 	return string(runes[:maxLen]) + "..."
 }
 
+// frontmatterBounds locates YAML frontmatter at the start of text. The opening
+// and closing delimiters must be lines consisting only of "---" (trailing
+// spaces and \r are allowed). It returns the byte range of the YAML between
+// the delimiters and the offset just after the closing line.
+func frontmatterBounds(text string) (yamlStart, yamlEnd, end int, ok bool) {
+	isDelimiter := func(line string) bool { return strings.TrimRight(line, " \t\r") == "---" }
+
+	first, _, found := strings.Cut(text, "\n")
+	if !found || !isDelimiter(first) {
+		return 0, 0, 0, false
+	}
+	yamlStart = len(first) + 1
+	for pos := yamlStart; pos < len(text); {
+		line, _, _ := strings.Cut(text[pos:], "\n")
+		next := min(pos+len(line)+1, len(text))
+		if isDelimiter(line) {
+			return yamlStart, pos, next, true
+		}
+		pos = next
+	}
+	return 0, 0, 0, false
+}
+
 // extractFrontmatter extracts YAML frontmatter from markdown content.
 // Returns frontmatter (with delimiters) and remaining content.
 // If no frontmatter found, returns empty string and original content.
 func extractFrontmatter(text string) (string, string) {
-	if !strings.HasPrefix(text, "---") {
+	_, _, end, ok := frontmatterBounds(text)
+	if !ok {
 		return "", text
 	}
-
-	// Find the closing ---
-	rest := text[3:]
-	idx := strings.Index(rest, "\n---")
-	if idx == -1 {
-		return "", text
-	}
-
-	// Include the closing --- and newline
-	endIdx := 3 + idx + 4 // "---" + content + "\n---"
-
-	// Check if there's a newline after closing ---
-	if endIdx < len(text) && text[endIdx] == '\n' {
-		endIdx++
-	}
-
-	frontmatter := text[:endIdx]
-	content := text[endIdx:]
-
-	return frontmatter, content
+	return text[:end], text[end:]
 }
 
 // parseFrontmatter parses frontmatter string into a map.
-// Returns nil if parsing fails.
-func parseFrontmatter(frontmatter string) map[string]interface{} {
-	if frontmatter == "" {
-		return nil
+// An empty frontmatter gives an empty map; invalid YAML gives an error.
+func parseFrontmatter(frontmatter string) (map[string]interface{}, error) {
+	data := make(map[string]interface{})
+	start, end, _, ok := frontmatterBounds(frontmatter)
+	if !ok {
+		return data, nil
 	}
-
-	// Remove --- delimiters
-	content := strings.TrimPrefix(frontmatter, "---")
-	if idx := strings.Index(content, "\n---"); idx != -1 {
-		content = content[:idx]
+	if err := yaml.Unmarshal([]byte(frontmatter[start:end]), &data); err != nil {
+		return nil, err
 	}
-	content = strings.TrimSpace(content)
-
-	if content == "" {
-		return make(map[string]interface{})
+	if data == nil {
+		data = make(map[string]interface{})
 	}
-
-	var data map[string]interface{}
-	if err := yaml.Unmarshal([]byte(content), &data); err != nil {
-		return nil
-	}
-
-	return data
+	return data, nil
 }
 
 // buildFrontmatter creates frontmatter string from a map.
@@ -991,10 +987,12 @@ func buildFrontmatter(data map[string]interface{}) string {
 
 // updateFrontmatter adds or updates fields in frontmatter.
 // If frontmatter is empty, creates a new one.
+// If the existing frontmatter is not valid YAML it is returned unchanged.
 func updateFrontmatter(frontmatter string, updates map[string]interface{}) string {
-	data := parseFrontmatter(frontmatter)
-	if data == nil {
-		data = make(map[string]interface{})
+	data, err := parseFrontmatter(frontmatter)
+	if err != nil {
+		logWarn("frontmatter is not valid YAML, left unchanged: %v", err)
+		return frontmatter
 	}
 
 	for k, v := range updates {
