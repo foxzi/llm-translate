@@ -44,6 +44,17 @@ type Settings struct {
 
 	// APIToken, if set, is required as a Bearer token by the API server.
 	APIToken string `yaml:"api_token"`
+	// MaxConcurrent limits API requests processed at once; 0 = no limit.
+	MaxConcurrent int `yaml:"max_concurrent"`
+	// RequestTimeout limits processing of one API request in seconds; 0 = no limit.
+	RequestTimeout int `yaml:"request_timeout"`
+	// SkipSameLanguage makes the API return the text untranslated when
+	// "from" equals "to".
+	SkipSameLanguage bool `yaml:"skip_same_language"`
+	// MaxTextLength rejects API requests whose text is longer (in characters); 0 = no limit.
+	MaxTextLength int `yaml:"max_text_length"`
+	// StrictAnalysis makes the API drop analysis values outside the allowed sets.
+	StrictAnalysis bool `yaml:"strict_analysis"`
 }
 
 type StrongValidation struct {

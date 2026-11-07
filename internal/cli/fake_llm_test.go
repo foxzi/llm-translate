@@ -53,6 +53,10 @@ type fakeLLM struct {
 	// fail, if set, makes every request return this status and error message.
 	failStatus int
 	failMsg    string
+	retryAfter string
+	// analysis overrides fakeAnalysis; cost, if set, is reported as usage.cost.
+	analysis string
+	cost     float64
 }
 
 func newFakeLLM(t *testing.T) *fakeLLM {
@@ -67,6 +71,9 @@ func (f *fakeLLM) handle(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewDecoder(r.Body).Decode(&body)
 
 	if f.failStatus != 0 {
+		if f.retryAfter != "" {
+			w.Header().Set("Retry-After", f.retryAfter)
+		}
 		w.WriteHeader(f.failStatus)
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"message": f.failMsg}})
 		return
@@ -100,6 +107,15 @@ func (f *fakeLLM) handle(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case strings.Contains(system, "Analyze the following text"):
 		out = fakeAnalysis
+		if f.analysis != "" {
+			out = f.analysis
+		}
+		if strings.Contains(system, "=== SUMMARY ===") {
+			out += "\nSUMMARY: Tesla sold a record number of cars."
+		}
+		if strings.Contains(system, "=== LANGUAGE ===") {
+			out += "\nLANGUAGE: en"
+		}
 	case target != "":
 		out = "[" + target + "] " + user
 	default:
@@ -110,6 +126,9 @@ func (f *fakeLLM) handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	usage := map[string]any{"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+	if f.cost != 0 {
+		usage["cost"] = f.cost
+	}
 	resp := map[string]any{"usage": usage}
 	if r.URL.Path == "/completions" {
 		resp["choices"] = []any{map[string]any{"text": out}}
@@ -187,4 +206,11 @@ func subset(want, got any, path string) (string, bool) {
 		}
 	}
 	return "", true
+}
+
+func configWithoutAnalyses(s config.Settings) config.Settings {
+	s.Sentiment, s.TagsCount, s.Classify, s.Emotions = false, 0, false, false
+	s.Factuality, s.Impact, s.Sensationalism, s.Entities = false, false, false, false
+	s.Events, s.Usefulness, s.TimeFocus, s.AdDetect = false, false, false, false
+	return s
 }
