@@ -154,7 +154,7 @@ func translateAndAnalyze(ctx context.Context, t *translator.Translator, cfg *con
 		if err != nil {
 			return result, nil, err
 		}
-		fmUpdates, _ := runAnalysis(ctx, t, cfg, result.Text, "", verbose)
+		fmUpdates, _ := runAnalysis(ctx, t, cfg, result.Text, "", false, verbose)
 		return result, fmUpdates, nil
 	}
 
@@ -165,7 +165,7 @@ func translateAndAnalyze(ctx context.Context, t *translator.Translator, cfg *con
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		fmUpdates, _ = runAnalysis(ctx, at, cfg, req.Text, req.TargetLang, verbose)
+		fmUpdates, _ = runAnalysis(ctx, at, cfg, req.Text, req.TargetLang, false, verbose)
 	}()
 	result, err := t.Translate(ctx, req)
 	wg.Wait()
@@ -178,8 +178,9 @@ func translateAndAnalyze(ctx context.Context, t *translator.Translator, cfg *con
 // runAnalysis performs all enabled text analyses, using a single combined LLM
 // call when 2+ analyses or a summary are requested, or individual calls for
 // 0-1 analyses. Returns a map of frontmatter key-value updates (the summary
-// under "summary") and the names of analyses that failed.
-func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Config, text, lang string, verbose bool) (map[string]interface{}, []string) {
+// under "summary") and the names of analyses that failed. With detect a
+// combined call also asks for the language of text, returned as "language".
+func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Config, text, lang string, detect, verbose bool) (map[string]interface{}, []string) {
 	fmUpdates := make(map[string]interface{})
 	var failed []string
 
@@ -248,6 +249,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 			TimeFocus:      cfg.Settings.TimeFocus,
 			AdDetect:       cfg.Settings.AdDetect,
 			Summary:        cfg.Settings.Summary,
+			DetectLanguage: detect,
 		}
 
 		resp, err := t.AnalyzeCombined(ctx, req)
@@ -264,6 +266,9 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 			mapCombinedResponse(resp, fmUpdates)
 			if resp.Summary != "" {
 				fmUpdates["summary"] = resp.Summary
+			}
+			if resp.Language != "" {
+				fmUpdates["language"] = resp.Language
 			}
 			if verbose && len(resp.Failed) > 0 {
 				logWarn("Combined analysis returned no result for: %s", strings.Join(resp.Failed, ", "))

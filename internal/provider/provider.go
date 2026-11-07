@@ -382,6 +382,12 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 		sections = append(sections, "")
 	}
 
+	if req.DetectLanguage {
+		sections = append(sections, "=== LANGUAGE ===")
+		sections = append(sections, "LANGUAGE: <ISO 639-1 code of the language the text is written in, e.g. en>")
+		sections = append(sections, "")
+	}
+
 	if req.Lang != "" {
 		sections = append(sections, fmt.Sprintf("Write all free-text values (tags, entities, events, indicators, markers, summary) in language %q.", req.Lang))
 		sections = append(sections, "Keep section labels and fixed choice values exactly as specified above, in English.")
@@ -475,11 +481,18 @@ func ParseCombinedResponse(response string, req CombinedAnalysisRequest) Combine
 		}
 	}
 
+	if req.DetectLanguage {
+		if m := languageRe.FindStringSubmatch(response); m != nil {
+			result.Language = strings.ToLower(m[1])
+		}
+	}
+
 	result.Failed = combinedFailures(response, req, result)
 	return result
 }
 
 var (
+	languageRe      = regexp.MustCompile(`(?im)^LANGUAGE:[ \t]*([a-z]{2,3})\b`)
 	summaryRe       = regexp.MustCompile(`(?im)^SUMMARY:[ \t]*(.+)`)
 	emotionsLabelRe = regexp.MustCompile(`(?im)^EMOTIONS:`)
 	entitiesLabelRe = regexp.MustCompile(`(?im)^(?:ENTITY_)?(?:PERSONS|ORGANIZATIONS|LOCATIONS|DATES|AMOUNTS):`)
@@ -546,7 +559,8 @@ type CombinedAnalysisRequest struct {
 	Events         bool
 	TimeFocus      bool
 	AdDetect       bool
-	Summary        int // summary length in sentences; 0 = no summary
+	Summary        int  // summary length in sentences; 0 = no summary
+	DetectLanguage bool // ask for the language of the text
 }
 
 type CombinedAnalysisResponse struct {
@@ -563,6 +577,7 @@ type CombinedAnalysisResponse struct {
 	TimeFocus      *TimeFocusResponse
 	AdDetect       *AdDetectResponse
 	Summary        string
+	Language       string // ISO 639-1 code, set when DetectLanguage was requested
 	// Failed lists requested sections the model did not answer.
 	Failed []string
 }

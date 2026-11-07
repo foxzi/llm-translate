@@ -35,3 +35,17 @@ func TestCombinedSummaryAndFailures(t *testing.T) {
 		t.Error("summary section missing")
 	}
 }
+
+func TestCombinedLanguage(t *testing.T) {
+	req := CombinedAnalysisRequest{Sentiment: true, DetectLanguage: true}
+	if !strings.Contains(BuildCombinedPrompt(req), "=== LANGUAGE ===") {
+		t.Error("language section missing")
+	}
+	if strings.Contains(BuildCombinedPrompt(CombinedAnalysisRequest{Sentiment: true}), "LANGUAGE:") {
+		t.Error("language section without request")
+	}
+	resp := ParseCombinedResponse("SENTIMENT: neutral (0.0)\nLANGUAGE: DE\n", req)
+	if resp.Language != "de" || len(resp.Failed) != 0 {
+		t.Errorf("language = %q, failed = %v", resp.Language, resp.Failed)
+	}
+}
