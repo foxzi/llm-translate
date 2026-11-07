@@ -1,0 +1,7 @@
+{
+  "text": "[de] # Tesla sales\n\nTesla reported record sales last quarter.",
+  "usage": {
+    "completion_tokens": 5,
+    "prompt_tokens": 10
+  }
+}

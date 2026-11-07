@@ -1,0 +1,126 @@
+# LLM-Translate Configuration
+# API keys are loaded from environment variables
+
+default_provider: vllm
+default_target_language: ru
+
+settings:
+  temperature: 0.3
+  max_tokens: 4096
+  timeout: 900           # first model load in llama-swap takes up to ~200 s
+  chunk_size: 3000
+  preserve_format: true
+  retry_count: 3
+  retry_delay: 1
+
+  # Text analysis options (all enabled)
+  sentiment: true
+  tags_count: 5
+  classify: true
+  emotions: true
+  factuality: true
+  impact: true
+  sensationalism: true
+  entities: true
+  events: true
+  usefulness: true
+  time_focus: true      # Analyze temporal focus (past/present/future) and detect predictions
+  ad_detect: true       # Detect advertising content (direct, native, sponsored, PR)
+  batch_analysis: true  # Run all analyses in single LLM request (faster, cheaper)
+
+providers:
+  openai:
+    api_key: "${TEST_SECRET}"
+    base_url: https://api.openai.com/v1
+    model: gpt-4.1-nano
+
+  anthropic:
+    api_key: "${TEST_SECRET}"
+    base_url: https://api.anthropic.com
+    model: claude-3-5-sonnet-20241022
+
+  google:
+    api_key: "${TEST_SECRET}"
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    model: gemini-2.0-flash
+
+  vllm:
+    base_url: http://islacruses.main.lan:8000/v1
+    model: translategemma-12b
+
+  ollama:
+    base_url: http://portroyal.main.lan:11434
+    model: translategemma:12b
+
+  codex-cli:
+    base_url: codex
+
+  openrouter:
+    api_key: "${TEST_SECRET}"
+    base_url: https://openrouter.ai/api/v1
+    model: anthropic/claude-3.5-sonnet
+
+# Proxy settings (loaded from environment)
+proxy:
+  url: ${PROXY_URL}
+  username: ${PROXY_USER}
+  password: ${PROXY_PASS}
+  no_proxy:
+    - localhost
+    - 127.0.0.1
+    - "*.local"
+
+# Strong validation for translation quality
+strong_validation:
+  enabled: false
+  max_retries: 3
+  allowed_patterns:
+    - '\b[A-Z]{2,}\b'
+    - '\b[a-z]+[A-Z][a-zA-Z]*\b'
+    - '\b[A-Z][a-z]+[A-Z][a-zA-Z]*\b'
+    - '"[^"]+"'
+    - "'[^']+'"
+    - '`[^`]+`'
+    - '\b[a-z_]+\([^)]*\)'
+    - 'https?://[^\s]+'
+    - '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+  allowed_terms:
+    - API
+    - HTTP
+    - HTTPS
+    - JSON
+    - XML
+    - SQL
+    - REST
+    - GraphQL
+    - OAuth
+    - JWT
+    - SDK
+    - IDE
+    - CLI
+    - GUI
+    - URL
+    - DNS
+    - SSL
+    - TLS
+
+# Custom prompts
+prompts:
+  system: |
+    You are a professional translator. Translate the following text
+    from {source_lang} to {target_lang}.
+    Preserve the original formatting and structure.
+    Output only the translation without explanations.
+  styles:
+    formal: "Use formal language appropriate for official documents."
+    informal: "Use casual, conversational language."
+    technical: "Preserve technical terminology accurately."
+    literary: "Maintain literary style and artistic expression."
+
+# Glossary
+glossary:
+  - term: "API"
+    translation: "API"
+    note: "не переводить"
+  - term: "machine learning"
+    translation: "машинное обучение"

@@ -1,0 +1,80 @@
+{
+  "analysis": {
+    "ad_confidence": 0.95,
+    "ad_type": "none",
+    "affected": [
+      "business",
+      "investors"
+    ],
+    "amounts": [
+      "$1 billion"
+    ],
+    "dates": [
+      "2025"
+    ],
+    "emotions": {
+      "hope": 0.6,
+      "optimism": 0.5
+    },
+    "events": [
+      "Tesla reported record sales",
+      "Shares rose"
+    ],
+    "factuality": "confirmed",
+    "factuality_confidence": 0.9,
+    "factuality_evidence": [
+      "statistics",
+      "official_source"
+    ],
+    "is_prediction": false,
+    "locations": [
+      "USA"
+    ],
+    "news_type": [
+      "corporate"
+    ],
+    "organizations": [
+      "Tesla"
+    ],
+    "persons": [
+      "Elon Musk"
+    ],
+    "scope": [
+      "international"
+    ],
+    "sensationalism": "neutral",
+    "sensationalism_confidence": 0.8,
+    "sensationalism_markers": [
+      "superlatives"
+    ],
+    "sentiment": "positive",
+    "sentiment_score": 0.6,
+    "tags": [
+      "tesla",
+      "electric cars",
+      "sales",
+      "market",
+      "elon musk"
+    ],
+    "time_focus": "past",
+    "time_focus_confidence": 0.8,
+    "time_indicators": [
+      "last quarter"
+    ],
+    "topics": [
+      "technology",
+      "economics"
+    ],
+    "useful_confidence": 0.9,
+    "useful_content": true,
+    "useful_reasons": [
+      "facts",
+      "numbers"
+    ]
+  },
+  "text": "[de] # Tesla sales\n\nTesla reported record sales last quarter.",
+  "usage": {
+    "completion_tokens": 10,
+    "prompt_tokens": 20
+  }
+}
