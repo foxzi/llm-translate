@@ -13,8 +13,6 @@ type Config struct {
 	StrongValidation      StrongValidation          `yaml:"strong_validation"`
 	Proxy                 ProxyConfig               `yaml:"proxy"`
 	Providers             map[string]ProviderConfig `yaml:"providers"`
-	Prompts               Prompts                   `yaml:"prompts"`
-	Glossary              []GlossaryEntry           `yaml:"glossary"`
 
 	// Warnings collected while loading, e.g. unknown keys.
 	Warnings []string `yaml:"-"`
@@ -84,11 +82,6 @@ type ProviderConfig struct {
 	ChatTemplateKwargs map[string]any `yaml:"chat_template_kwargs"`
 }
 
-type Prompts struct {
-	System string            `yaml:"system"`
-	Styles map[string]string `yaml:"styles"`
-}
-
 type GlossaryEntry struct {
 	Term          string `yaml:"term"`
 	Source        string `yaml:"source"`
@@ -147,15 +140,6 @@ func DefaultConfig() *Config {
 			},
 		},
 		Providers: make(map[string]ProviderConfig),
-		Prompts: Prompts{
-			System: `You are a professional translator. Translate the following text from {source_lang} to {target_lang}. Preserve the original formatting and structure. Output only the translation without explanations.`,
-			Styles: map[string]string{
-				"formal":    "Use formal language appropriate for official documents.",
-				"informal":  "Use casual, conversational language.",
-				"technical": "Preserve technical terminology accurately.",
-				"literary":  "Maintain literary style and artistic expression.",
-			},
-		},
 	}
 }
 

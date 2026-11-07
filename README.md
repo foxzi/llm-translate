@@ -177,18 +177,6 @@ proxy:
   no_proxy:
     - localhost
     - 127.0.0.1
-
-# Prompt templates (parsed, but not used by the current code)
-prompts:
-  system: "You are a professional translator. Translate from {source_lang} to {target_lang}."
-  styles:
-    formal: "Use formal language."
-
-# Glossary (parsed, but not used by the current code: use --glossary <file>)
-glossary:
-  - term: "API"
-    translation: "API"
-    note: "do not translate"
 ```
 
 Notes:
@@ -333,8 +321,9 @@ Entry fields:
 | `case_sensitive` | Affects the post-processing step only: a source term left in the translated text is replaced with the target, matching case if `true`, ignoring case otherwise |
 | `context` | Accepted in the file, but not used by the current code |
 
-Entries without both a source and a target are skipped. The `glossary:` key in
-the main config file is not used; pass the file with `--glossary`.
+Entries without both a source and a target are skipped. A `glossary:` key in
+the main config file is not supported (it is ignored with a warning); pass the
+file with `--glossary`.
 
 Use it in translation:
 

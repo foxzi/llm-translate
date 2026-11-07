@@ -148,26 +148,3 @@ providers:
     # No API key needed - uses CLI's own authorization
     # base_url is optional path to qwen binary (default: "qwen")
     base_url: qwen
-
-# Custom prompts (optional)
-prompts:
-  system: |
-    You are a professional translator. Translate the following text 
-    from {source_lang} to {target_lang}. 
-    Preserve the original formatting and structure.
-    Output only the translation without explanations.
-  
-  # Style-specific prompts
-  styles:
-    formal: "Use formal language appropriate for official documents."
-    informal: "Use casual, conversational language."
-    technical: "Preserve technical terminology accurately."
-    literary: "Maintain literary style and artistic expression."
-
-# Default glossary (applied to all translations)
-glossary:
-  - term: "API"
-    translation: "API"
-    note: "не переводить"
-  - term: "machine learning"
-    translation: "машинное обучение"

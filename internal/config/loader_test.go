@@ -36,11 +36,13 @@ func TestLoadNewsPortalConfig(t *testing.T) {
 	if cfg.Providers["openai"].APIKey != "s3cret" {
 		t.Errorf("env vars are not expanded in api_key")
 	}
-	if len(cfg.Warnings) != 1 || !strings.Contains(cfg.Warnings[0], "batch_analysis") {
+	// Keys no longer in Config (batch_analysis, prompts, glossary) only warn.
+	if w := strings.Join(cfg.Warnings, "\n"); len(cfg.Warnings) != 3 ||
+		!strings.Contains(w, "batch_analysis") || !strings.Contains(w, "prompts") || !strings.Contains(w, "glossary") {
 		t.Errorf("warnings = %q", cfg.Warnings)
 	}
-	if len(cfg.Providers) != 7 || len(cfg.Glossary) != 2 || cfg.StrongValidation.Enabled {
-		t.Errorf("providers=%d glossary=%d strong=%v", len(cfg.Providers), len(cfg.Glossary), cfg.StrongValidation.Enabled)
+	if len(cfg.Providers) != 7 || cfg.StrongValidation.Enabled {
+		t.Errorf("providers=%d strong=%v", len(cfg.Providers), cfg.StrongValidation.Enabled)
 	}
 }
 
