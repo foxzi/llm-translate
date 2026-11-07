@@ -102,7 +102,10 @@ jobs:
             -o dist/llm-translate cmd/llm-translate/main.go
 
       - name: Install nfpm
-        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+        # setup-go v7 sets GOTOOLCHAIN=local; nfpm needs a newer Go than the build.
+        env:
+          GOTOOLCHAIN: auto
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.48.0
 
       - name: Build package
         env:
