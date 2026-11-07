@@ -46,7 +46,6 @@ var (
 	quiet            bool
 	dryRun           bool
 	proxyURL         string
-	proxyAuth        string
 	noProxy          bool
 	sentiment        bool
 	tagsCount        int
@@ -109,7 +108,6 @@ func newRootCmd(ctx context.Context) *cobra.Command {
 	rootCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Quiet mode (only result)")
 	rootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show request without sending")
 	rootCmd.Flags().StringVarP(&proxyURL, "proxy", "x", "", "Proxy server URL")
-	rootCmd.Flags().StringVar(&proxyAuth, "proxy-auth", "", "Proxy authentication (user:pass)")
 	rootCmd.Flags().BoolVar(&noProxy, "no-proxy", false, "Ignore proxy from config")
 	rootCmd.Flags().BoolVar(&sentiment, "sentiment", false, "Analyze sentiment of translated text")
 	rootCmd.Flags().IntVar(&tagsCount, "tags", 0, "Extract N tags from translated text (0 to disable)")

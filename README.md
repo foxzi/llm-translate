@@ -265,7 +265,6 @@ Notes:
 | `--version` | `-v` | Show version (the `version` subcommand does the same) | - |
 | `--quiet` | `-q` | Quiet mode (only result) | false |
 | `--proxy` | `-x` | Proxy server URL | from config |
-| `--proxy-auth` | | Proxy authentication (`user:pass`); the flag is accepted but currently has no effect, use `proxy.username`/`proxy.password` | - |
 | `--no-proxy` | | Clear the global proxy (from the config or the environment); a per-provider `proxy` is not affected | false |
 | `--api` | | Run as HTTP API server | false |
 | `--listen` | | API server listen address | :8080 |
