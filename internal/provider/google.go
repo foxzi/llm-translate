@@ -123,10 +123,9 @@ func (p *GoogleProvider) Translate(ctx context.Context, req TranslateRequest) (T
 		return TranslateResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -135,6 +134,7 @@ func (p *GoogleProvider) Translate(ctx context.Context, req TranslateRequest) (T
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -201,10 +201,9 @@ func (p *GoogleProvider) AnalyzeSentiment(ctx context.Context, text string) (Sen
 		return SentimentResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -213,6 +212,7 @@ func (p *GoogleProvider) AnalyzeSentiment(ctx context.Context, text string) (Sen
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -274,10 +274,9 @@ func (p *GoogleProvider) ExtractTags(ctx context.Context, text string, count int
 		return TagsResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -286,6 +285,7 @@ func (p *GoogleProvider) ExtractTags(ctx context.Context, text string, count int
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -345,10 +345,9 @@ func (p *GoogleProvider) Classify(ctx context.Context, text string) (ClassifyRes
 		return ClassifyResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -357,6 +356,7 @@ func (p *GoogleProvider) Classify(ctx context.Context, text string) (ClassifyRes
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -416,10 +416,9 @@ func (p *GoogleProvider) AnalyzeEmotions(ctx context.Context, text string) (Emot
 		return EmotionsResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -428,6 +427,7 @@ func (p *GoogleProvider) AnalyzeEmotions(ctx context.Context, text string) (Emot
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -487,10 +487,9 @@ func (p *GoogleProvider) AnalyzeFactuality(ctx context.Context, text string) (Fa
 		return FactualityResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -499,6 +498,7 @@ func (p *GoogleProvider) AnalyzeFactuality(ctx context.Context, text string) (Fa
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -558,10 +558,9 @@ func (p *GoogleProvider) AnalyzeImpact(ctx context.Context, text string) (Impact
 		return ImpactResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -570,6 +569,7 @@ func (p *GoogleProvider) AnalyzeImpact(ctx context.Context, text string) (Impact
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -629,10 +629,9 @@ func (p *GoogleProvider) AnalyzeSensationalism(ctx context.Context, text string)
 		return SensationalismResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -641,6 +640,7 @@ func (p *GoogleProvider) AnalyzeSensationalism(ctx context.Context, text string)
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -700,10 +700,9 @@ func (p *GoogleProvider) ExtractEntities(ctx context.Context, text string) (Enti
 		return EntitiesResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -712,6 +711,7 @@ func (p *GoogleProvider) ExtractEntities(ctx context.Context, text string) (Enti
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -771,10 +771,9 @@ func (p *GoogleProvider) ExtractEvents(ctx context.Context, text string) (Events
 		return EventsResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -783,6 +782,7 @@ func (p *GoogleProvider) ExtractEvents(ctx context.Context, text string) (Events
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -842,10 +842,9 @@ func (p *GoogleProvider) AnalyzeUsefulness(ctx context.Context, text string) (Us
 		return UsefulnessResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -854,6 +853,7 @@ func (p *GoogleProvider) AnalyzeUsefulness(ctx context.Context, text string) (Us
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -913,10 +913,9 @@ func (p *GoogleProvider) AnalyzeAdDetect(ctx context.Context, text string) (AdDe
 		return AdDetectResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -925,6 +924,7 @@ func (p *GoogleProvider) AnalyzeAdDetect(ctx context.Context, text string) (AdDe
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -984,10 +984,9 @@ func (p *GoogleProvider) AnalyzeTimeFocus(ctx context.Context, text string) (Tim
 		return TimeFocusResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -996,6 +995,7 @@ func (p *GoogleProvider) AnalyzeTimeFocus(ctx context.Context, text string) (Tim
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
@@ -1057,10 +1057,9 @@ func (p *GoogleProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalys
 		return CombinedAnalysisResponse{}, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s",
+	url := fmt.Sprintf("%s/models/%s:generateContent",
 		strings.TrimRight(p.config.BaseURL, "/"),
 		p.config.Model,
-		p.config.APIKey,
 	)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonData))
@@ -1069,6 +1068,7 @@ func (p *GoogleProvider) AnalyzeCombined(ctx context.Context, req CombinedAnalys
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.config.APIKey)
 
 	resp, err := p.httpClient.Do(httpReq)
 	if err != nil {
