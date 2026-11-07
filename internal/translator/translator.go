@@ -55,22 +55,10 @@ func New(cfg *config.Config, verbose bool) *Translator {
 }
 
 func (t *Translator) Translate(ctx context.Context, req TranslateRequest) (TranslateResponse, error) {
-	client, err := t.createHTTPClient()
-	if err != nil {
-		return TranslateResponse{}, fmt.Errorf("failed to create HTTP client: %w", err)
+	if err := t.ensureProvider(); err != nil {
+		return TranslateResponse{}, err
 	}
-	t.client = client
-
-	providerCfg, ok := t.config.Providers[t.config.DefaultProvider]
-	if !ok {
-		return TranslateResponse{}, fmt.Errorf("provider %s not configured", t.config.DefaultProvider)
-	}
-
-	p, err := provider.Get(t.config.DefaultProvider, providerCfg, t.client)
-	if err != nil {
-		return TranslateResponse{}, fmt.Errorf("failed to initialize provider: %w", err)
-	}
-	t.provider = p
+	providerCfg := t.config.Providers[t.config.DefaultProvider]
 
 	if t.verbose && t.config.DefaultProvider == "vllm" && provider.IsTranslateGemma(providerCfg.Model) &&
 		(req.Style != "" || req.Context != "" || len(req.Glossary) > 0) {
@@ -394,16 +382,29 @@ func (t *Translator) createHTTPClient() (*http.Client, error) {
 	}
 
 	if proxyCfg.URL != "" {
-		c, err := proxy.NewHTTPClient(proxyCfg, t.config.Settings.Timeout)
-		if err != nil {
-			return nil, err
-		}
-		return withUsageTransport(c), nil
+		return proxyClient(proxyCfg, t.config.Settings.Timeout)
 	}
 
 	return withUsageTransport(&http.Client{
 		Timeout: time.Duration(t.config.Settings.Timeout) * time.Second,
 	}), nil
+}
+
+// proxyClients caches clients by proxy settings: every Translator in the API
+// server would otherwise open its own Transport and connection pool.
+var proxyClients sync.Map
+
+func proxyClient(cfg config.ProxyConfig, timeout int) (*http.Client, error) {
+	key := fmt.Sprintf("%#v/%d", cfg, timeout)
+	if c, ok := proxyClients.Load(key); ok {
+		return c.(*http.Client), nil
+	}
+	c, err := proxy.NewHTTPClient(cfg, timeout)
+	if err != nil {
+		return nil, err
+	}
+	actual, _ := proxyClients.LoadOrStore(key, withUsageTransport(c))
+	return actual.(*http.Client), nil
 }
 
 func (t *Translator) validateTranslation(ctx context.Context, original, translated string, req TranslateRequest) (string, error) {
