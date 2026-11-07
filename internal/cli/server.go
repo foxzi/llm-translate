@@ -39,19 +39,7 @@ type apiError struct {
 // runServer serves translation and analysis over HTTP until ctx is cancelled.
 // Analyses enabled in cfg.Settings are applied to every request.
 func runServer(ctx context.Context, cfg *config.Config, glossary []config.GlossaryEntry) error {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	})
-	mux.HandleFunc("POST /v1/translate", func(w http.ResponseWriter, r *http.Request) {
-		if !authorized(r, cfg.Settings.APIToken) {
-			writeJSON(w, http.StatusUnauthorized, apiError{Error: "unauthorized"})
-			return
-		}
-		handleTranslate(w, r, cfg, glossary)
-	})
-
-	srv := &http.Server{Addr: listenAddr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Addr: listenAddr, Handler: newServerHandler(cfg, glossary), ReadHeaderTimeout: 10 * time.Second}
 
 	go func() {
 		<-ctx.Done()
@@ -68,6 +56,21 @@ func runServer(ctx context.Context, cfg *config.Config, glossary []config.Glossa
 		return err
 	}
 	return nil
+}
+
+func newServerHandler(cfg *config.Config, glossary []config.GlossaryEntry) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
+	mux.HandleFunc("POST /v1/translate", func(w http.ResponseWriter, r *http.Request) {
+		if !authorized(r, cfg.Settings.APIToken) {
+			writeJSON(w, http.StatusUnauthorized, apiError{Error: "unauthorized"})
+			return
+		}
+		handleTranslate(w, r, cfg, glossary)
+	})
+	return mux
 }
 
 func handleTranslate(w http.ResponseWriter, r *http.Request, cfg *config.Config, glossary []config.GlossaryEntry) {

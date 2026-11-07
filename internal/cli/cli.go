@@ -67,6 +67,11 @@ var (
 )
 
 func Execute(ctx context.Context) error {
+	return newRootCmd(ctx).ExecuteContext(ctx)
+}
+
+// newRootCmd builds the root command; flag variables are reset to their defaults.
+func newRootCmd(ctx context.Context) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "llm-translate",
 		Short: "Translate text using LLM APIs",
@@ -135,7 +140,7 @@ func Execute(ctx context.Context) error {
 	}
 	rootCmd.AddCommand(versionCmd)
 
-	return rootCmd.ExecuteContext(ctx)
+	return rootCmd
 }
 
 // translateAndAnalyze translates the text and runs enabled analyses. By default
