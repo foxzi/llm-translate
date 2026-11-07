@@ -212,6 +212,7 @@ proxy:
 | `--time-focus` | | Analyze temporal focus (past/present/future) and detect predictions | false |
 | `--ad-detect` | | Detect advertising content (direct, native, sponsored, PR) | false |
 | `--parallel-analysis` | | Analyze the original text in parallel with translation (results in target language) | false |
+| `--summary` | | Add a summary of N sentences to frontmatter (0 to disable) | 0 |
 | `--verbose` | | Verbose output | false |
 | `--version` | `-v` | Show version | - |
 | `--quiet` | `-q` | Quiet mode | false |
@@ -569,6 +570,24 @@ curl -s -X POST localhost:8080/v1/translate \
 Without Docker: `llm-translate --api --listen :8080 -c config.yaml`.
 Details: [docs/en/api-server.md](docs/en/api-server.md)
 ([на русском](docs/ru/api-server.md)).
+
+All extra request fields are optional; a client sending only `{text, from, to}`
+gets the same response as before. Extra request fields: `title`, `translate`
+(`false` = analyze only), `analysis` (list of analyses, replaces the config),
+`tags` and `summary` (sentences). The response may add `title`, `summary`,
+`detected_language`, `analysis_errors` and `provider`, `model`, `cost` in
+`usage`. Errors carry a `code` (`invalid_request`, `unauthorized`,
+`rate_limited`, `timeout`, `provider_error`). New settings, all off by
+default: `summary`, `max_concurrent`, `request_timeout`, `max_text_length`,
+`skip_same_language`, `strict_analysis`.
+
+```bash
+curl -s -X POST localhost:8080/v1/translate \
+  -d '{"text":"Hello world","to":"ru","analysis":["sentiment","tags"],"summary":1}'
+```
+
+The `--summary N` flag does the same for the CLI: it adds a summary of N
+sentences to the frontmatter.
 
 ### Using CLI-based Providers
 
