@@ -94,23 +94,7 @@ func (p *ClaudeCLIProvider) runCLIJSON(ctx context.Context, prompt string, input
 }
 
 func (p *ClaudeCLIProvider) Translate(ctx context.Context, req TranslateRequest) (TranslateResponse, error) {
-	prompt := fmt.Sprintf(
-		"You are a professional translator. Translate the following text from %s to %s. "+
-			"Preserve the original formatting and structure. "+
-			"Output only the translation without explanations.",
-		req.SourceLang, req.TargetLang,
-	)
-
-	if req.SourceLang == "auto" {
-		prompt = fmt.Sprintf(
-			"You are a professional translator. Detect the source language and translate the text to %s. "+
-				"Preserve the original formatting and structure. "+
-				"Output only the translation without explanations.",
-			req.TargetLang,
-		)
-	}
-
-	fullPrompt := p.buildPrompt(req, prompt)
+	fullPrompt := translationPrompt(req)
 
 	result, err := p.runCLI(ctx, fullPrompt, req.Text)
 	if err != nil {

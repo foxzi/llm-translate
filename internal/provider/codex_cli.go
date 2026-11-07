@@ -125,33 +125,8 @@ func (p *CodexCLIProvider) runCLIJSON(ctx context.Context, prompt string) (strin
 }
 
 func (p *CodexCLIProvider) Translate(ctx context.Context, req TranslateRequest) (TranslateResponse, error) {
-	prompt := fmt.Sprintf(
-		"You are a professional translator. Translate the following text from %s to %s. "+
-			"Preserve the original formatting and structure. "+
-			"Output only the translation without explanations.\n\nText to translate:\n%s",
-		req.SourceLang, req.TargetLang, req.Text,
-	)
-
-	if req.SourceLang == "auto" {
-		prompt = fmt.Sprintf(
-			"You are a professional translator. Detect the source language and translate the text to %s. "+
-				"Preserve the original formatting and structure. "+
-				"Output only the translation without explanations.\n\nText to translate:\n%s",
-			req.TargetLang, req.Text,
-		)
-	}
-
-	if req.Style != "" {
-		stylePrompts := map[string]string{
-			"formal":    "Use formal language appropriate for official documents.",
-			"informal":  "Use casual, conversational language.",
-			"technical": "Preserve technical terminology accurately.",
-			"literary":  "Maintain literary style and artistic expression.",
-		}
-		if stylePrompt, ok := stylePrompts[req.Style]; ok {
-			prompt = stylePrompt + " " + prompt
-		}
-	}
+	prompt := translationPrompt(req) +
+		"\n\nThe text to translate is enclosed in <text> tags; do not output the tags.\n\n<text>\n" + req.Text + "\n</text>"
 
 	result, tokensUsed, err := p.runCLIJSON(ctx, prompt)
 	if err != nil {

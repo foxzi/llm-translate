@@ -62,23 +62,7 @@ func NewOllamaProvider(cfg config.ProviderConfig, client *http.Client) Provider 
 }
 
 func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (TranslateResponse, error) {
-	systemPrompt := fmt.Sprintf(
-		"You are a professional translator. Translate the following text from %s to %s. "+
-			"Preserve the original formatting and structure. "+
-			"Output only the translation without explanations.",
-		req.SourceLang, req.TargetLang,
-	)
-
-	if req.SourceLang == "auto" {
-		systemPrompt = fmt.Sprintf(
-			"You are a professional translator. Detect the source language and translate the text to %s. "+
-				"Preserve the original formatting and structure. "+
-				"Output only the translation without explanations.",
-			req.TargetLang,
-		)
-	}
-
-	fullPrompt := p.buildPrompt(req, systemPrompt)
+	fullPrompt := translationPrompt(req)
 
 	ollamaReq := ollamaRequest{
 		Model:  p.config.Model,
