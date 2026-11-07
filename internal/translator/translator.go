@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"os"
@@ -284,26 +285,30 @@ func (t *Translator) AnalyzeCombined(ctx context.Context, req provider.CombinedA
 
 func (t *Translator) translateWithRetry(ctx context.Context, req provider.TranslateRequest) (provider.TranslateResponse, error) {
 	var lastErr error
-	retryCount := t.config.Settings.RetryCount
-	if retryCount == 0 {
-		retryCount = 3
-	}
+	retryCount := max(t.config.Settings.RetryCount, 0)
 
 	for attempt := 0; attempt <= retryCount; attempt++ {
 		if attempt > 0 {
-			delay := time.Duration(t.config.Settings.RetryDelay) * time.Second
-			if delay == 0 {
-				delay = time.Second
+			base := time.Duration(t.config.Settings.RetryDelay) * time.Second
+			if base == 0 {
+				base = time.Second
 			}
-			delay = delay * time.Duration(1<<(attempt-1))
+			var retryAfter time.Duration
+			var httpErr *provider.HTTPError
+			if errors.As(lastErr, &httpErr) {
+				retryAfter = httpErr.RetryAfter
+			}
+			delay := retryDelay(base, attempt, retryAfter)
 
 			if t.verbose {
 				t.logInfo("Retrying after %v (attempt %d/%d)...", delay, attempt, retryCount)
 			}
 
+			timer := time.NewTimer(delay)
 			select {
-			case <-time.After(delay):
+			case <-timer.C:
 			case <-ctx.Done():
+				timer.Stop()
 				return provider.TranslateResponse{}, ctx.Err()
 			}
 		}
@@ -325,6 +330,30 @@ func (t *Translator) translateWithRetry(ctx context.Context, req provider.Transl
 	}
 
 	return provider.TranslateResponse{}, fmt.Errorf("failed after %d retries: %w", retryCount, lastErr)
+}
+
+const (
+	maxBackoff = 30 * time.Second
+	// maxRetryAfter is the longest Retry-After hint that is waited for. A
+	// longer one is ignored, so that callers (the API in particular) are not
+	// blocked for minutes and get the provider error instead.
+	maxRetryAfter = 10 * time.Second
+)
+
+// retryDelay returns the wait before retry number attempt (1-based): base
+// doubled per attempt with up to 25% jitter, capped at maxBackoff, or the
+// provider's Retry-After hint when that is longer and not above maxRetryAfter.
+func retryDelay(base time.Duration, attempt int, retryAfter time.Duration) time.Duration {
+	delay := base
+	for i := 1; i < attempt && delay < maxBackoff; i++ {
+		delay *= 2
+	}
+	delay += rand.N(delay/4 + 1)
+	delay = min(delay, maxBackoff)
+	if retryAfter > delay && retryAfter <= maxRetryAfter {
+		return retryAfter
+	}
+	return delay
 }
 
 func (t *Translator) createHTTPClient() (*http.Client, error) {

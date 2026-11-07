@@ -67,3 +67,21 @@ func TestLoadMissingFile(t *testing.T) {
 		t.Fatal("expected error for missing config")
 	}
 }
+
+// TestLoadRetryCount checks that retry_count defaults to 3 when unset and
+// that an explicit 0 is kept (no retries).
+func TestLoadRetryCount(t *testing.T) {
+	for yaml, want := range map[string]int{"settings: {}\n": 3, "settings:\n  retry_count: 0\n": 0, "settings:\n  retry_count: 5\n": 5} {
+		path := filepath.Join(t.TempDir(), "config.yaml")
+		if err := os.WriteFile(path, []byte(yaml), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := Load(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Settings.RetryCount != want {
+			t.Errorf("%q: RetryCount = %d, want %d", yaml, cfg.Settings.RetryCount, want)
+		}
+	}
+}

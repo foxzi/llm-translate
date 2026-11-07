@@ -83,7 +83,7 @@ settings:
   timeout: 60               # Request timeout in seconds
   chunk_size: 3000          # Characters per chunk for long texts
   preserve_format: false    # Preserve markdown/HTML formatting
-  retry_count: 3            # Number of retries on failure
+  retry_count: 3            # Number of retries on failure (0 = no retries)
   retry_delay: 1            # Delay between retries in seconds
 
   # Text analysis settings (results added to frontmatter)
