@@ -67,12 +67,7 @@ func (t *Translator) Translate(ctx context.Context, req TranslateRequest) (Trans
 		})
 	}
 
-	text := req.Text
-	if len(req.Glossary) > 0 {
-		text = applyGlossaryPreProcessing(text, req.Glossary)
-	}
-
-	chunks := t.splitIntoChunks(text, t.config.Settings.ChunkSize)
+	chunks := t.splitIntoChunks(req.Text, t.config.Settings.ChunkSize)
 	if t.verbose && len(chunks) > 1 {
 		t.logInfo("Text split into %d chunks", len(chunks))
 	}
@@ -105,7 +100,7 @@ func (t *Translator) Translate(ctx context.Context, req TranslateRequest) (Trans
 		translatedChunk := resp.Text
 
 		if req.StrongMode {
-			validated, err := t.validateTranslation(ctx, chunk, translatedChunk, req)
+			validated, err := t.validateTranslation(translatedChunk, req)
 			if err != nil {
 				if t.verbose {
 					t.logWarn("Strong validation failed for chunk %d: %v", i+1, err)
@@ -129,7 +124,7 @@ func (t *Translator) Translate(ctx context.Context, req TranslateRequest) (Trans
 						continue
 					}
 
-					retryValidated, validateErr := t.validateTranslation(ctx, chunk, retryResp.Text, req)
+					retryValidated, validateErr := t.validateTranslation(retryResp.Text, req)
 					if validateErr == nil {
 						translatedChunk = retryValidated
 						retrySuccess = true
@@ -407,7 +402,7 @@ func proxyClient(cfg config.ProxyConfig, timeout int) (*http.Client, error) {
 	return actual.(*http.Client), nil
 }
 
-func (t *Translator) validateTranslation(ctx context.Context, original, translated string, req TranslateRequest) (string, error) {
+func (t *Translator) validateTranslation(translated string, req TranslateRequest) (string, error) {
 	if !req.StrongMode {
 		return translated, nil
 	}
@@ -557,13 +552,6 @@ func splitIntoSentences(text string) []string {
 	}
 
 	return sentences
-}
-
-// applyGlossaryPreProcessing is a no-op: glossary terms are injected into
-// the LLM prompt via provider.buildPrompt, so no text-level pre-processing
-// is needed.
-func applyGlossaryPreProcessing(text string, glossary []config.GlossaryEntry) string {
-	return text
 }
 
 // applyGlossaryPostProcessing verifies that glossary terms were translated
