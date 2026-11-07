@@ -118,6 +118,8 @@ Rules:
 - Be conservative: factual news articles typically have low emotion scores
 - Advertising/promotional text should have high optimism, not high fear/panic
 
+- If no emotion has a score above 0.1, respond with "EMOTIONS: none"
+
 Example response:
 EMOTIONS: fear:0.8, uncertainty:0.6, panic:0.3
 
@@ -310,7 +312,7 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 	if req.Emotions {
 		sections = append(sections, "=== EMOTIONS ===")
 		sections = append(sections, "EMOTIONS: <fear:X.X, anger:X.X, hope:X.X, uncertainty:X.X, optimism:X.X, panic:X.X>")
-		sections = append(sections, "Rules: only emotions > 0.1, round to 1 decimal, descending order. Be conservative for factual news.")
+		sections = append(sections, "Rules: only emotions > 0.1, round to 1 decimal, descending order. Be conservative for factual news. Use 'none' if no emotion is above 0.1.")
 		sections = append(sections, "")
 	}
 
@@ -498,6 +500,7 @@ var (
 	emotionsLabelRe = regexp.MustCompile(`(?im)^EMOTIONS:`)
 	entitiesLabelRe = regexp.MustCompile(`(?im)^(?:ENTITY_)?(?:PERSONS|ORGANIZATIONS|LOCATIONS|DATES|AMOUNTS):`)
 	eventsLabelRe   = regexp.MustCompile(`(?im)^EVENTS:`)
+	classifyLabelRe = regexp.MustCompile(`(?im)^(?:TOPICS|SCOPE|TYPE):`)
 )
 
 // combinedFailures lists requested sections missing from the parsed result.
@@ -889,7 +892,8 @@ func ParseClassifyResponse(response string) (ClassifyResponse, error) {
 		result.NewsType = parseCommaSeparated(matches[1])
 	}
 
-	if len(result.Topics) == 0 && len(result.Scope) == 0 && len(result.NewsType) == 0 {
+	// "none" in every category is a valid empty result; no label at all is not.
+	if !classifyLabelRe.MatchString(response) {
 		return ClassifyResponse{}, fmt.Errorf("invalid classify response format: %s", response)
 	}
 
@@ -986,7 +990,7 @@ func ParseEmotionsResponse(response string) (EmotionsResponse, error) {
 		Emotions: make(map[string]float64),
 	}
 
-	re := regexp.MustCompile(`(?im)^EMOTIONS:[ \t]*(.+)`)
+	re := regexp.MustCompile(`(?im)^EMOTIONS:[ \t]*(.*)`)
 	matches := re.FindStringSubmatch(response)
 
 	if len(matches) < 2 {
@@ -1006,7 +1010,8 @@ func ParseEmotionsResponse(response string) (EmotionsResponse, error) {
 		}
 	}
 
-	if len(result.Emotions) == 0 {
+	// An empty answer or "none" means no emotion is above the threshold.
+	if answer := strings.ToLower(strings.TrimSpace(matches[1])); len(result.Emotions) == 0 && answer != "" && answer != "none" {
 		return EmotionsResponse{}, fmt.Errorf("no emotions found in response")
 	}
 
@@ -1115,7 +1120,8 @@ func ParseEntitiesResponse(response string) (EntitiesResponse, error) {
 		result.Amounts = filterAmounts(filterEntityGarbage(parseCommaSeparatedKeepCase(matches[1])))
 	}
 
-	if len(result.Persons) == 0 && len(result.Organizations) == 0 && len(result.Locations) == 0 && len(result.Dates) == 0 && len(result.Amounts) == 0 {
+	// "none" in every category is a valid empty result; no label at all is not.
+	if !entitiesLabelRe.MatchString(response) {
 		return EntitiesResponse{}, fmt.Errorf("no entities found in response: %s", response)
 	}
 
@@ -1126,24 +1132,18 @@ func ParseEventsResponse(response string) (EventsResponse, error) {
 	response = StripReasoning(response)
 	result := EventsResponse{}
 
-	re := regexp.MustCompile(`(?im)^EVENTS:[ \t]*(.+)`)
+	re := regexp.MustCompile(`(?im)^EVENTS:[ \t]*(.*)`)
 	matches := re.FindStringSubmatch(response)
 
-	if len(matches) >= 2 {
-		eventsStr := matches[1]
-		if strings.ToLower(strings.TrimSpace(eventsStr)) != "none" {
-			parts := strings.Split(eventsStr, ";")
-			for _, p := range parts {
-				p = strings.TrimSpace(p)
-				if p != "" && strings.ToLower(p) != "none" {
-					result.Events = append(result.Events, p)
-				}
-			}
-		}
+	if len(matches) < 2 {
+		return EventsResponse{}, fmt.Errorf("no events found in response: %s", response)
 	}
 
-	if len(result.Events) == 0 {
-		return EventsResponse{}, fmt.Errorf("no events found in response: %s", response)
+	for _, p := range strings.Split(matches[1], ";") {
+		p = strings.TrimSpace(p)
+		if p != "" && strings.ToLower(p) != "none" {
+			result.Events = append(result.Events, p)
+		}
 	}
 
 	return result, nil
