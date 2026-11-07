@@ -76,6 +76,9 @@ func NewHTTPClient(cfg config.ProxyConfig, timeoutSeconds ...int) (*http.Client,
 				}).DialContext(ctx, network, addr)
 			}
 
+			if d, ok := dialer.(proxy.ContextDialer); ok {
+				return d.DialContext(ctx, network, addr)
+			}
 			return dialer.Dial(network, addr)
 		}
 
