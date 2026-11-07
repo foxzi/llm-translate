@@ -12,7 +12,7 @@ import (
 
 func Load(configPath string) (*Config, error) {
 	cfg := DefaultConfig()
-	
+
 	paths := []string{}
 	if configPath != "" {
 		paths = append(paths, configPath)
@@ -37,7 +37,7 @@ func Load(configPath string) (*Config, error) {
 
 	expandEnvVarsInConfig(cfg)
 	applyEnvironmentOverrides(cfg)
-	
+
 	return cfg, nil
 }
 
@@ -93,14 +93,14 @@ func applyEnvironmentOverrides(cfg *Config) {
 	if provider := os.Getenv("LLM_TRANSLATE_PROVIDER"); provider != "" {
 		cfg.DefaultProvider = provider
 	}
-	
+
 	if model := os.Getenv("LLM_TRANSLATE_MODEL"); model != "" {
 		if provider, ok := cfg.Providers[cfg.DefaultProvider]; ok {
 			provider.Model = model
 			cfg.Providers[cfg.DefaultProvider] = provider
 		}
 	}
-	
+
 	if proxy := os.Getenv("LLM_TRANSLATE_PROXY"); proxy != "" {
 		cfg.Proxy.URL = proxy
 	} else if proxy := os.Getenv("HTTPS_PROXY"); proxy != "" {
@@ -110,11 +110,11 @@ func applyEnvironmentOverrides(cfg *Config) {
 	} else if proxy := os.Getenv("ALL_PROXY"); proxy != "" {
 		cfg.Proxy.URL = proxy
 	}
-	
+
 	if noProxy := os.Getenv("NO_PROXY"); noProxy != "" {
 		cfg.Proxy.NoProxy = strings.Split(noProxy, ",")
 	}
-	
+
 	if apiKey := os.Getenv("OPENAI_API_KEY"); apiKey != "" {
 		if provider, ok := cfg.Providers["openai"]; ok {
 			provider.APIKey = apiKey
@@ -127,7 +127,7 @@ func applyEnvironmentOverrides(cfg *Config) {
 			}
 		}
 	}
-	
+
 	if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey != "" {
 		if provider, ok := cfg.Providers["anthropic"]; ok {
 			provider.APIKey = apiKey
@@ -140,7 +140,7 @@ func applyEnvironmentOverrides(cfg *Config) {
 			}
 		}
 	}
-	
+
 	if apiKey := os.Getenv("GOOGLE_API_KEY"); apiKey != "" {
 		if provider, ok := cfg.Providers["google"]; ok {
 			provider.APIKey = apiKey
@@ -153,7 +153,7 @@ func applyEnvironmentOverrides(cfg *Config) {
 			}
 		}
 	}
-	
+
 	if apiKey := os.Getenv("OPENROUTER_API_KEY"); apiKey != "" {
 		if provider, ok := cfg.Providers["openrouter"]; ok {
 			provider.APIKey = apiKey
