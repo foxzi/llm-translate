@@ -400,6 +400,7 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 }
 
 func ParseCombinedResponse(response string, req CombinedAnalysisRequest) CombinedAnalysisResponse {
+	response = StripReasoning(response)
 	result := CombinedAnalysisResponse{}
 
 	if req.Sentiment {
@@ -673,14 +674,28 @@ type BaseProvider struct {
 	httpClient *http.Client
 }
 
+var thinkBlock = regexp.MustCompile(`(?s)<think>.*?</think>`)
+
+// StripReasoning removes <think>...</think> blocks and trims the result. An
+// unclosed leading <think> means the model never reached the answer, so the
+// result is empty.
+func StripReasoning(s string) string {
+	s = strings.TrimSpace(thinkBlock.ReplaceAllString(s, ""))
+	if strings.HasPrefix(s, "<think>") {
+		return ""
+	}
+	return s
+}
+
 // checkTranslation rejects a translation that was cut off by the token limit
-// or came back empty.
+// or came back empty, and returns it without reasoning blocks.
 func checkTranslation(text, finishReason string) (string, error) {
 	switch finishReason {
 	case "length", "max_tokens", "MAX_TOKENS":
 		return "", fmt.Errorf("response truncated (finish_reason=%s), increase max_tokens", finishReason)
 	}
-	if strings.TrimSpace(text) == "" {
+	text = StripReasoning(text)
+	if text == "" {
 		if finishReason != "" {
 			return "", fmt.Errorf("empty response from model (finish_reason=%s)", finishReason)
 		}
@@ -785,7 +800,7 @@ func ListProviders() []string {
 }
 
 func ParseSentimentResponse(response string) (SentimentResponse, error) {
-	response = strings.TrimSpace(response)
+	response = StripReasoning(response)
 
 	re := regexp.MustCompile(`(?im)^SENTIMENT:\s*(positive|negative|neutral)\s*\(([+-]?\d*\.?\d+)\)`)
 	matches := re.FindStringSubmatch(response)
@@ -817,7 +832,7 @@ func abs(x float64) float64 {
 }
 
 func ParseTagsResponse(response string) (TagsResponse, error) {
-	response = strings.TrimSpace(response)
+	response = StripReasoning(response)
 
 	re := regexp.MustCompile(`(?im)^TAGS:[ \t]*(.+)`)
 	matches := re.FindStringSubmatch(response)
@@ -853,7 +868,7 @@ func LimitTags(tags []string, count int) []string {
 }
 
 func ParseClassifyResponse(response string) (ClassifyResponse, error) {
-	response = strings.TrimSpace(response)
+	response = StripReasoning(response)
 	result := ClassifyResponse{}
 
 	// Parse TOPICS
@@ -966,7 +981,7 @@ func isBareNumber(s string) bool {
 }
 
 func ParseEmotionsResponse(response string) (EmotionsResponse, error) {
-	response = strings.TrimSpace(response)
+	response = StripReasoning(response)
 	result := EmotionsResponse{
 		Emotions: make(map[string]float64),
 	}
@@ -999,7 +1014,7 @@ func ParseEmotionsResponse(response string) (EmotionsResponse, error) {
 }
 
 func ParseFactualityResponse(response string) (FactualityResponse, error) {
-	response = strings.TrimSpace(response)
+	response = StripReasoning(response)
 	result := FactualityResponse{}
 
 	// Parse FACTUALITY line
@@ -1025,7 +1040,7 @@ func ParseFactualityResponse(response string) (FactualityResponse, error) {
 }
 
 func ParseImpactResponse(response string) (ImpactResponse, error) {
-	response = strings.TrimSpace(response)
+	response = StripReasoning(response)
 	result := ImpactResponse{}
 
 	re := regexp.MustCompile(`(?im)^AFFECTED:[ \t]*(.+)`)
@@ -1041,7 +1056,7 @@ func ParseImpactResponse(response string) (ImpactResponse, error) {
 }
 
 func ParseSensationalismResponse(response string) (SensationalismResponse, error) {
-	response = strings.TrimSpace(response)
+	response = StripReasoning(response)
 	result := SensationalismResponse{}
 
 	// Parse SENSATIONALISM line
@@ -1067,7 +1082,7 @@ func ParseSensationalismResponse(response string) (SensationalismResponse, error
 }
 
 func ParseEntitiesResponse(response string) (EntitiesResponse, error) {
-	response = strings.TrimSpace(response)
+	response = StripReasoning(response)
 	result := EntitiesResponse{}
 
 	// Parse PERSONS (supports both ENTITY_PERSONS: and PERSONS: formats)
@@ -1108,7 +1123,7 @@ func ParseEntitiesResponse(response string) (EntitiesResponse, error) {
 }
 
 func ParseEventsResponse(response string) (EventsResponse, error) {
-	response = strings.TrimSpace(response)
+	response = StripReasoning(response)
 	result := EventsResponse{}
 
 	re := regexp.MustCompile(`(?im)^EVENTS:[ \t]*(.+)`)
@@ -1135,7 +1150,7 @@ func ParseEventsResponse(response string) (EventsResponse, error) {
 }
 
 func ParseUsefulnessResponse(response string) (UsefulnessResponse, error) {
-	response = strings.TrimSpace(response)
+	response = StripReasoning(response)
 	result := UsefulnessResponse{}
 
 	// Parse USEFULNESS line
@@ -1159,7 +1174,7 @@ func ParseUsefulnessResponse(response string) (UsefulnessResponse, error) {
 }
 
 func ParseTimeFocusResponse(response string) (TimeFocusResponse, error) {
-	response = strings.TrimSpace(response)
+	response = StripReasoning(response)
 	result := TimeFocusResponse{}
 
 	// Parse TIME_FOCUS line
@@ -1189,7 +1204,7 @@ func ParseTimeFocusResponse(response string) (TimeFocusResponse, error) {
 }
 
 func ParseAdDetectResponse(response string) (AdDetectResponse, error) {
-	response = strings.TrimSpace(response)
+	response = StripReasoning(response)
 	result := AdDetectResponse{}
 
 	// Parse AD_TYPE line
