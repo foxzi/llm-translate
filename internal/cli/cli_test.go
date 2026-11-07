@@ -167,3 +167,34 @@ func TestCLIErrors(t *testing.T) {
 		t.Errorf("provider error: %v", err)
 	}
 }
+
+func TestCLIDirectoryDryRun(t *testing.T) {
+	f := newFakeLLM(t)
+	cfgPath := writeTestConfig(t, f, false)
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "a.md"), []byte("one"), 0o644)
+
+	if err := runCLI("-c", cfgPath, "-d", dir, "--dry-run", "-f", "en", "-t", "de"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "a_de.md")); err == nil {
+		t.Error("dry run wrote a file")
+	}
+	if len(f.requests) != 0 {
+		t.Errorf("dry run sent %d requests", len(f.requests))
+	}
+}
+
+func TestCLIDirectoryFailureExitsWithError(t *testing.T) {
+	f := newFakeLLM(t)
+	f.failStatus, f.failMsg = 400, "model not found"
+	cfgPath := writeTestConfig(t, f, false)
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "a.md"), []byte("one"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "b.md"), []byte("two"), 0o644)
+
+	err := runCLI("-c", cfgPath, "-d", dir, "-f", "en", "-t", "de")
+	if err == nil || err.Error() != "2 of 2 files failed" {
+		t.Errorf("err = %v, want \"2 of 2 files failed\"", err)
+	}
+}

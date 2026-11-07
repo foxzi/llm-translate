@@ -1044,6 +1044,14 @@ func runDirectoryTranslate(ctx context.Context, cfg *config.Config) error {
 
 	logInfo("Found %d files to translate", len(files))
 
+	if dryRun {
+		logInfo("Dry run mode - files that would be translated:")
+		for _, inputPath := range files {
+			logInfo("%s -> %s", inputPath, generateOutputPath(inputPath, outSuffix, outPrefix, targetLang))
+		}
+		return nil
+	}
+
 	// Load glossary once
 	var glossary []config.GlossaryEntry
 	if glossaryFile != "" {
@@ -1056,6 +1064,7 @@ func runDirectoryTranslate(ctx context.Context, cfg *config.Config) error {
 	t := translator.New(cfg, verbose)
 
 	// Translate each file
+	failed := 0
 	for i, inputPath := range files {
 		select {
 		case <-ctx.Done():
@@ -1068,10 +1077,13 @@ func runDirectoryTranslate(ctx context.Context, cfg *config.Config) error {
 
 		if err := translateFile(ctx, t, cfg, inputPath, outputPath, glossary); err != nil {
 			logError("Failed to translate %s: %v", inputPath, err)
-			continue
+			failed++
 		}
 	}
 
+	if failed > 0 {
+		return fmt.Errorf("%d of %d files failed", failed, len(files))
+	}
 	logInfo("Translation complete")
 	return nil
 }
