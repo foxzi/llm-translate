@@ -21,6 +21,9 @@ cp config.example.yaml config.yaml   # set provider, model and analyses
 docker compose up -d --build
 ```
 
+A prebuilt multi-arch image (amd64, arm64) is published to GHCR on every release:
+`ghcr.io/foxzi/llm-translate:<version>` and `ghcr.io/foxzi/llm-translate:latest`.
+
 `docker-compose.yml` mounts `./config.yaml` read-only to `/config.yaml`, publishes
 port 8080 and restarts the container (`unless-stopped`). The container runs as the
 non-root user `app` (uid 10001), so `config.yaml` must be readable by it (`chmod 644`).

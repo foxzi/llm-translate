@@ -621,6 +621,9 @@ curl -s -X POST localhost:8080/v1/translate \
 # {"text":"Привет, мир","analysis":{...}}
 ```
 
+A prebuilt multi-arch image (amd64, arm64) is published to GHCR on every release:
+`ghcr.io/foxzi/llm-translate:<version>` and `ghcr.io/foxzi/llm-translate:latest`.
+
 The image is built from `Dockerfile` (Go 1.25, static binary at
 `/usr/local/bin/llm-translate`, `ENTRYPOINT ["llm-translate"]`, default
 `CMD ["--api", "-c", "/config.yaml"]`, port 8080). `docker-compose.yml` mounts

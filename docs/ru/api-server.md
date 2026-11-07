@@ -21,6 +21,9 @@ cp config.example.yaml config.yaml   # указать провайдера, мо
 docker compose up -d --build
 ```
 
+Готовый мультиархитектурный образ (amd64, arm64) публикуется в GHCR при каждом релизе:
+`ghcr.io/foxzi/llm-translate:<версия>` и `ghcr.io/foxzi/llm-translate:latest`.
+
 `docker-compose.yml` монтирует `./config.yaml` в `/config.yaml` только для чтения,
 публикует порт 8080 и перезапускает контейнер (`unless-stopped`). Контейнер работает от
 непривилегированного пользователя `app` (uid 10001), поэтому `config.yaml` должен быть ему доступен
