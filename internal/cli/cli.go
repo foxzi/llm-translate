@@ -176,8 +176,8 @@ func translateAndAnalyze(ctx context.Context, t *translator.Translator, cfg *con
 }
 
 // runAnalysis performs all enabled text analyses, using a single combined LLM
-// call when 2+ analyses or a summary are requested, or individual calls for
-// 0-1 analyses. Returns a map of frontmatter key-value updates (the summary
+// call when 2+ analyses, a summary or a target language are requested, or
+// individual calls for 0-1 analyses (only the combined prompt knows lang). Returns a map of frontmatter key-value updates (the summary
 // under "summary") and the names of analyses that failed. With detect a
 // combined call also asks for the language of text, returned as "language".
 func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Config, text, lang string, detect, verbose bool) (map[string]interface{}, []string) {
@@ -227,9 +227,9 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		return fmUpdates, nil
 	}
 
-	// Use combined analysis when 2+ analyses are enabled; a summary is only
-	// available there.
-	if enabledCount >= 2 || cfg.Settings.Summary > 0 {
+	// Use combined analysis when 2+ analyses are enabled; a summary and a
+	// target language are only available there.
+	if enabledCount >= 2 || cfg.Settings.Summary > 0 || lang != "" {
 		if verbose {
 			logInfo("Running combined analysis (%d types)...", enabledCount)
 		}
@@ -256,6 +256,9 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		if err != nil {
 			if verbose {
 				logWarn("Combined analysis failed, falling back to individual calls: %v", err)
+			}
+			if lang != "" && verbose {
+				logWarn("Individual analysis calls do not use the target language %q", lang)
 			}
 			if cfg.Settings.Summary > 0 {
 				failed = append(failed, "summary")
