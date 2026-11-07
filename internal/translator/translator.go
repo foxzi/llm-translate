@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/foxzi/llm-translate/internal/config"
 	"github.com/foxzi/llm-translate/internal/provider"
@@ -402,36 +403,40 @@ func (t *Translator) validateTranslation(ctx context.Context, original, translat
 	return translated, nil
 }
 
+// splitIntoChunks splits text into chunks of at most chunkSize runes where
+// possible: by paragraphs, then sentences, then words. A fenced code block is
+// never split, so it may exceed chunkSize. chunkSize <= 0 disables chunking.
 func (t *Translator) splitIntoChunks(text string, chunkSize int) []string {
-	if len(text) <= chunkSize {
+	if chunkSize <= 0 || utf8.RuneCountInString(text) <= chunkSize {
 		return []string{text}
 	}
 
 	var chunks []string
-	paragraphs := strings.Split(text, "\n\n")
+	emit := func(s string) {
+		if s = strings.TrimSpace(s); s != "" {
+			chunks = append(chunks, s)
+		}
+	}
 
 	currentChunk := ""
-	for _, paragraph := range paragraphs {
-		if len(currentChunk)+len(paragraph)+2 > chunkSize {
-			if currentChunk != "" {
-				chunks = append(chunks, strings.TrimSpace(currentChunk))
-				currentChunk = ""
-			}
+	for _, para := range splitParagraphs(text) {
+		paragraph := para.text
+		if utf8.RuneCountInString(currentChunk)+utf8.RuneCountInString(paragraph)+2 > chunkSize {
+			emit(currentChunk)
+			currentChunk = ""
 
-			if len(paragraph) > chunkSize {
+			if utf8.RuneCountInString(paragraph) > chunkSize && !para.fenced {
 				sentences := splitIntoSentences(paragraph)
 				for _, sentence := range sentences {
-					if len(currentChunk)+len(sentence)+1 > chunkSize {
-						if currentChunk != "" {
-							chunks = append(chunks, strings.TrimSpace(currentChunk))
-							currentChunk = ""
-						}
+					if utf8.RuneCountInString(currentChunk)+utf8.RuneCountInString(sentence)+1 > chunkSize {
+						emit(currentChunk)
+						currentChunk = ""
 
-						if len(sentence) > chunkSize {
+						if utf8.RuneCountInString(sentence) > chunkSize {
 							words := strings.Fields(sentence)
 							for _, word := range words {
-								if len(currentChunk)+len(word)+1 > chunkSize {
-									chunks = append(chunks, strings.TrimSpace(currentChunk))
+								if currentChunk != "" && utf8.RuneCountInString(currentChunk)+utf8.RuneCountInString(word)+1 > chunkSize {
+									emit(currentChunk)
 									currentChunk = word
 								} else {
 									if currentChunk != "" {
@@ -460,12 +465,57 @@ func (t *Translator) splitIntoChunks(text string, chunkSize int) []string {
 			currentChunk += paragraph
 		}
 	}
-
-	if currentChunk != "" {
-		chunks = append(chunks, strings.TrimSpace(currentChunk))
-	}
+	emit(currentChunk)
 
 	return chunks
+}
+
+type textParagraph struct {
+	text   string
+	fenced bool // contains a fenced code block, must not be split
+}
+
+// splitParagraphs splits text at blank lines, keeping every fenced code
+// block (``` or ~~~) together with the blank lines inside it.
+func splitParagraphs(text string) []textParagraph {
+	var paragraphs []textParagraph
+	var fence string // opening fence of the block we are inside, "" if none
+	for _, part := range strings.Split(text, "\n\n") {
+		wasOpen := fence != ""
+		fenced := false
+		for _, line := range strings.Split(part, "\n") {
+			fence = nextFenceState(fence, line)
+			fenced = fenced || fence != ""
+		}
+		if wasOpen {
+			last := &paragraphs[len(paragraphs)-1]
+			last.text += "\n\n" + part
+			continue
+		}
+		paragraphs = append(paragraphs, textParagraph{text: part, fenced: fenced})
+	}
+	return paragraphs
+}
+
+// nextFenceState returns the open fence after line: the marker when line
+// opens a block (open == ""), "" when it closes the open block.
+func nextFenceState(open, line string) string {
+	line = strings.TrimLeft(line, " ")
+	if len(line) < 3 || (line[0] != '`' && line[0] != '~') {
+		return open
+	}
+	marker := strings.TrimLeft(line, string(line[0]))
+	marker = line[:len(line)-len(marker)]
+	if len(marker) < 3 {
+		return open
+	}
+	if open == "" {
+		return marker
+	}
+	if marker[0] == open[0] && len(marker) >= len(open) && strings.TrimSpace(line[len(marker):]) == "" {
+		return ""
+	}
+	return open
 }
 
 func splitIntoSentences(text string) []string {
