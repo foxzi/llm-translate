@@ -402,7 +402,7 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 }
 
 func ParseCombinedResponse(response string, req CombinedAnalysisRequest) CombinedAnalysisResponse {
-	response = StripReasoning(response)
+	response = normalizeResponse(response)
 	result := CombinedAnalysisResponse{}
 
 	if req.Sentiment {
@@ -803,7 +803,7 @@ func ListProviders() []string {
 }
 
 func ParseSentimentResponse(response string) (SentimentResponse, error) {
-	response = StripReasoning(response)
+	response = normalizeResponse(response)
 
 	re := regexp.MustCompile(`(?im)^SENTIMENT:\s*(positive|negative|neutral)\s*\(([+-]?\d*\.?\d+)\)`)
 	matches := re.FindStringSubmatch(response)
@@ -835,7 +835,7 @@ func abs(x float64) float64 {
 }
 
 func ParseTagsResponse(response string) (TagsResponse, error) {
-	response = StripReasoning(response)
+	response = normalizeResponse(response)
 
 	re := regexp.MustCompile(`(?im)^TAGS:[ \t]*(.+)`)
 	matches := re.FindStringSubmatch(response)
@@ -871,7 +871,7 @@ func LimitTags(tags []string, count int) []string {
 }
 
 func ParseClassifyResponse(response string) (ClassifyResponse, error) {
-	response = StripReasoning(response)
+	response = normalizeResponse(response)
 	result := ClassifyResponse{}
 
 	// Parse TOPICS
@@ -985,7 +985,7 @@ func isBareNumber(s string) bool {
 }
 
 func ParseEmotionsResponse(response string) (EmotionsResponse, error) {
-	response = StripReasoning(response)
+	response = normalizeResponse(response)
 	result := EmotionsResponse{
 		Emotions: make(map[string]float64),
 	}
@@ -997,7 +997,7 @@ func ParseEmotionsResponse(response string) (EmotionsResponse, error) {
 		return EmotionsResponse{}, fmt.Errorf("invalid emotions response format: %s", response)
 	}
 
-	emotionRe := regexp.MustCompile(`(\w+):([0-9.]+)`)
+	emotionRe := regexp.MustCompile(`(\w+)[ \t]*:[ \t]*([0-9.]+)`)
 	emotionMatches := emotionRe.FindAllStringSubmatch(matches[1], -1)
 
 	for _, m := range emotionMatches {
@@ -1019,7 +1019,7 @@ func ParseEmotionsResponse(response string) (EmotionsResponse, error) {
 }
 
 func ParseFactualityResponse(response string) (FactualityResponse, error) {
-	response = StripReasoning(response)
+	response = normalizeResponse(response)
 	result := FactualityResponse{}
 
 	// Parse FACTUALITY line
@@ -1045,7 +1045,7 @@ func ParseFactualityResponse(response string) (FactualityResponse, error) {
 }
 
 func ParseImpactResponse(response string) (ImpactResponse, error) {
-	response = StripReasoning(response)
+	response = normalizeResponse(response)
 	result := ImpactResponse{}
 
 	re := regexp.MustCompile(`(?im)^AFFECTED:[ \t]*(.+)`)
@@ -1061,7 +1061,7 @@ func ParseImpactResponse(response string) (ImpactResponse, error) {
 }
 
 func ParseSensationalismResponse(response string) (SensationalismResponse, error) {
-	response = StripReasoning(response)
+	response = normalizeResponse(response)
 	result := SensationalismResponse{}
 
 	// Parse SENSATIONALISM line
@@ -1087,7 +1087,7 @@ func ParseSensationalismResponse(response string) (SensationalismResponse, error
 }
 
 func ParseEntitiesResponse(response string) (EntitiesResponse, error) {
-	response = StripReasoning(response)
+	response = normalizeResponse(response)
 	result := EntitiesResponse{}
 
 	// Parse PERSONS (supports both ENTITY_PERSONS: and PERSONS: formats)
@@ -1129,7 +1129,7 @@ func ParseEntitiesResponse(response string) (EntitiesResponse, error) {
 }
 
 func ParseEventsResponse(response string) (EventsResponse, error) {
-	response = StripReasoning(response)
+	response = normalizeResponse(response)
 	result := EventsResponse{}
 
 	re := regexp.MustCompile(`(?im)^EVENTS:[ \t]*(.*)`)
@@ -1150,7 +1150,7 @@ func ParseEventsResponse(response string) (EventsResponse, error) {
 }
 
 func ParseUsefulnessResponse(response string) (UsefulnessResponse, error) {
-	response = StripReasoning(response)
+	response = normalizeResponse(response)
 	result := UsefulnessResponse{}
 
 	// Parse USEFULNESS line
@@ -1174,7 +1174,7 @@ func ParseUsefulnessResponse(response string) (UsefulnessResponse, error) {
 }
 
 func ParseTimeFocusResponse(response string) (TimeFocusResponse, error) {
-	response = StripReasoning(response)
+	response = normalizeResponse(response)
 	result := TimeFocusResponse{}
 
 	// Parse TIME_FOCUS line
@@ -1204,7 +1204,7 @@ func ParseTimeFocusResponse(response string) (TimeFocusResponse, error) {
 }
 
 func ParseAdDetectResponse(response string) (AdDetectResponse, error) {
-	response = StripReasoning(response)
+	response = normalizeResponse(response)
 	result := AdDetectResponse{}
 
 	// Parse AD_TYPE line
