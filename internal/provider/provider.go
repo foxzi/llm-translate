@@ -376,8 +376,14 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 		sections = append(sections, "")
 	}
 
+	if req.Summary > 0 {
+		sections = append(sections, "=== SUMMARY ===")
+		sections = append(sections, fmt.Sprintf("SUMMARY: <summary of the text in at most %d sentences, on a single line>", req.Summary))
+		sections = append(sections, "")
+	}
+
 	if req.Lang != "" {
-		sections = append(sections, fmt.Sprintf("Write all free-text values (tags, entities, events, indicators, markers) in language %q.", req.Lang))
+		sections = append(sections, fmt.Sprintf("Write all free-text values (tags, entities, events, indicators, markers, summary) in language %q.", req.Lang))
 		sections = append(sections, "Keep section labels and fixed choice values exactly as specified above, in English.")
 		sections = append(sections, "")
 	}
@@ -463,7 +469,47 @@ func ParseCombinedResponse(response string, req CombinedAnalysisRequest) Combine
 		}
 	}
 
+	if req.Summary > 0 {
+		if m := summaryRe.FindStringSubmatch(response); m != nil {
+			result.Summary = strings.TrimSpace(m[1])
+		}
+	}
+
+	result.Failed = combinedFailures(response, req, result)
 	return result
+}
+
+var (
+	summaryRe       = regexp.MustCompile(`(?im)^SUMMARY:[ \t]*(.+)`)
+	emotionsLabelRe = regexp.MustCompile(`(?im)^EMOTIONS:`)
+	entitiesLabelRe = regexp.MustCompile(`(?im)^(?:ENTITY_)?(?:PERSONS|ORGANIZATIONS|LOCATIONS|DATES|AMOUNTS):`)
+	eventsLabelRe   = regexp.MustCompile(`(?im)^EVENTS:`)
+)
+
+// combinedFailures lists requested sections missing from the parsed result.
+// Emotions, entities and events may legitimately be empty, so they count as
+// failed only when their label is absent from the response.
+func combinedFailures(response string, req CombinedAnalysisRequest, r CombinedAnalysisResponse) []string {
+	var failed []string
+	check := func(name string, requested, ok bool) {
+		if requested && !ok {
+			failed = append(failed, name)
+		}
+	}
+	check("sentiment", req.Sentiment, r.Sentiment != nil)
+	check("tags", req.TagsCount > 0, r.Tags != nil)
+	check("classify", req.Classify, r.Classify != nil)
+	check("emotions", req.Emotions, r.Emotions != nil || emotionsLabelRe.MatchString(response))
+	check("factuality", req.Factuality, r.Factuality != nil)
+	check("impact", req.Impact, r.Impact != nil)
+	check("sensationalism", req.Sensationalism, r.Sensationalism != nil)
+	check("usefulness", req.Usefulness, r.Usefulness != nil)
+	check("entities", req.Entities, r.Entities != nil || entitiesLabelRe.MatchString(response))
+	check("events", req.Events, r.Events != nil || eventsLabelRe.MatchString(response))
+	check("time_focus", req.TimeFocus, r.TimeFocus != nil)
+	check("ad_detect", req.AdDetect, r.AdDetect != nil)
+	check("summary", req.Summary > 0, r.Summary != "")
+	return failed
 }
 
 type Provider interface {
@@ -500,6 +546,7 @@ type CombinedAnalysisRequest struct {
 	Events         bool
 	TimeFocus      bool
 	AdDetect       bool
+	Summary        int // summary length in sentences; 0 = no summary
 }
 
 type CombinedAnalysisResponse struct {
@@ -515,6 +562,9 @@ type CombinedAnalysisResponse struct {
 	Events         *EventsResponse
 	TimeFocus      *TimeFocusResponse
 	AdDetect       *AdDetectResponse
+	Summary        string
+	// Failed lists requested sections the model did not answer.
+	Failed []string
 }
 
 type TranslateRequest struct {

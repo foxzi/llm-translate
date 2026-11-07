@@ -37,6 +37,8 @@ type Settings struct {
 	Usefulness     bool    `yaml:"usefulness"`
 	TimeFocus      bool    `yaml:"time_focus"`
 	AdDetect       bool    `yaml:"ad_detect"`
+	// Summary is the summary length in sentences; 0 disables it.
+	Summary int `yaml:"summary"`
 
 	ParallelAnalysis bool `yaml:"parallel_analysis"`
 

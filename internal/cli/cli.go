@@ -61,6 +61,7 @@ var (
 	timeFocus        bool
 	adDetect         bool
 	parallelAnalysis bool
+	summary          int
 	apiMode          bool
 	listenAddr       string
 	apiToken         string
@@ -122,6 +123,7 @@ func newRootCmd(ctx context.Context) *cobra.Command {
 	rootCmd.Flags().BoolVar(&usefulness, "usefulness", false, "Analyze content usefulness (detect useless/spam content)")
 	rootCmd.Flags().BoolVar(&timeFocus, "time-focus", false, "Analyze temporal focus (past/present/future) and detect predictions")
 	rootCmd.Flags().BoolVar(&adDetect, "ad-detect", false, "Detect advertising content (direct, native, sponsored, PR)")
+	rootCmd.Flags().IntVar(&summary, "summary", 0, "Add a summary of N sentences to frontmatter (0 to disable)")
 	rootCmd.Flags().BoolVar(&parallelAnalysis, "parallel-analysis", false, "Analyze the original text in parallel with translation (results in target language)")
 	rootCmd.Flags().BoolVar(&apiMode, "api", false, "Run as HTTP API server")
 	rootCmd.Flags().StringVar(&listenAddr, "listen", ":8080", "Listen address for API server")
@@ -152,7 +154,8 @@ func translateAndAnalyze(ctx context.Context, t *translator.Translator, cfg *con
 		if err != nil {
 			return result, nil, err
 		}
-		return result, runAnalysis(ctx, t, cfg, result.Text, "", verbose), nil
+		fmUpdates, _ := runAnalysis(ctx, t, cfg, result.Text, "", verbose)
+		return result, fmUpdates, nil
 	}
 
 	// Separate translator: Translator lazily sets its provider and is not safe for concurrent use.
@@ -162,7 +165,7 @@ func translateAndAnalyze(ctx context.Context, t *translator.Translator, cfg *con
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		fmUpdates = runAnalysis(ctx, at, cfg, req.Text, req.TargetLang, verbose)
+		fmUpdates, _ = runAnalysis(ctx, at, cfg, req.Text, req.TargetLang, verbose)
 	}()
 	result, err := t.Translate(ctx, req)
 	wg.Wait()
@@ -173,10 +176,12 @@ func translateAndAnalyze(ctx context.Context, t *translator.Translator, cfg *con
 }
 
 // runAnalysis performs all enabled text analyses, using a single combined LLM
-// call when 2+ analyses are requested, or individual calls for 0-1 analyses.
-// Returns a map of frontmatter key-value updates.
-func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Config, text, lang string, verbose bool) map[string]interface{} {
+// call when 2+ analyses or a summary are requested, or individual calls for
+// 0-1 analyses. Returns a map of frontmatter key-value updates (the summary
+// under "summary") and the names of analyses that failed.
+func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Config, text, lang string, verbose bool) (map[string]interface{}, []string) {
 	fmUpdates := make(map[string]interface{})
+	var failed []string
 
 	// Count enabled analyses
 	enabledCount := 0
@@ -217,12 +222,13 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		enabledCount++
 	}
 
-	if enabledCount == 0 {
-		return fmUpdates
+	if enabledCount == 0 && cfg.Settings.Summary <= 0 {
+		return fmUpdates, nil
 	}
 
-	// Use combined analysis when 2+ analyses are enabled
-	if enabledCount >= 2 {
+	// Use combined analysis when 2+ analyses are enabled; a summary is only
+	// available there.
+	if enabledCount >= 2 || cfg.Settings.Summary > 0 {
 		if verbose {
 			logInfo("Running combined analysis (%d types)...", enabledCount)
 		}
@@ -241,6 +247,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 			Events:         cfg.Settings.Events,
 			TimeFocus:      cfg.Settings.TimeFocus,
 			AdDetect:       cfg.Settings.AdDetect,
+			Summary:        cfg.Settings.Summary,
 		}
 
 		resp, err := t.AnalyzeCombined(ctx, req)
@@ -248,11 +255,20 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 			if verbose {
 				logWarn("Combined analysis failed, falling back to individual calls: %v", err)
 			}
+			if cfg.Settings.Summary > 0 {
+				failed = append(failed, "summary")
+			}
 			// Fall through to individual calls below
 		} else {
 			// Unpack combined response into fmUpdates
 			mapCombinedResponse(resp, fmUpdates)
-			return fmUpdates
+			if resp.Summary != "" {
+				fmUpdates["summary"] = resp.Summary
+			}
+			if verbose && len(resp.Failed) > 0 {
+				logWarn("Combined analysis returned no result for: %s", strings.Join(resp.Failed, ", "))
+			}
+			return fmUpdates, resp.Failed
 		}
 	}
 
@@ -263,6 +279,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 		sentimentResult, err := t.AnalyzeSentiment(ctx, text)
 		if err != nil {
+			failed = append(failed, "sentiment")
 			if verbose {
 				logWarn("Sentiment analysis failed: %v", err)
 			}
@@ -278,6 +295,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 		tagsResult, err := t.ExtractTags(ctx, text, cfg.Settings.TagsCount)
 		if err != nil {
+			failed = append(failed, "tags")
 			if verbose {
 				logWarn("Tags extraction failed: %v", err)
 			}
@@ -292,6 +310,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 		classifyResult, err := t.Classify(ctx, text)
 		if err != nil {
+			failed = append(failed, "classify")
 			if verbose {
 				logWarn("Classification failed: %v", err)
 			}
@@ -314,6 +333,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 		emotionsResult, err := t.AnalyzeEmotions(ctx, text)
 		if err != nil {
+			failed = append(failed, "emotions")
 			if verbose {
 				logWarn("Emotions analysis failed: %v", err)
 			}
@@ -330,6 +350,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 		factualityResult, err := t.AnalyzeFactuality(ctx, text)
 		if err != nil {
+			failed = append(failed, "factuality")
 			if verbose {
 				logWarn("Factuality analysis failed: %v", err)
 			}
@@ -348,6 +369,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 		impactResult, err := t.AnalyzeImpact(ctx, text)
 		if err != nil {
+			failed = append(failed, "impact")
 			if verbose {
 				logWarn("Impact analysis failed: %v", err)
 			}
@@ -364,6 +386,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 		sensResult, err := t.AnalyzeSensationalism(ctx, text)
 		if err != nil {
+			failed = append(failed, "sensationalism")
 			if verbose {
 				logWarn("Sensationalism analysis failed: %v", err)
 			}
@@ -382,6 +405,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 		entitiesResult, err := t.ExtractEntities(ctx, text)
 		if err != nil {
+			failed = append(failed, "entities")
 			if verbose {
 				logWarn("Entities extraction failed: %v", err)
 			}
@@ -410,6 +434,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 		eventsResult, err := t.ExtractEvents(ctx, text)
 		if err != nil {
+			failed = append(failed, "events")
 			if verbose {
 				logWarn("Events extraction failed: %v", err)
 			}
@@ -426,6 +451,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 		usefulnessResult, err := t.AnalyzeUsefulness(ctx, text)
 		if err != nil {
+			failed = append(failed, "usefulness")
 			if verbose {
 				logWarn("Usefulness analysis failed: %v", err)
 			}
@@ -452,6 +478,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 		timeFocusResult, err := t.AnalyzeTimeFocus(ctx, text)
 		if err != nil {
+			failed = append(failed, "time_focus")
 			if verbose {
 				logWarn("Time focus analysis failed: %v", err)
 			}
@@ -471,6 +498,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 		adResult, err := t.AnalyzeAdDetect(ctx, text)
 		if err != nil {
+			failed = append(failed, "ad_detect")
 			if verbose {
 				logWarn("Ad detection failed: %v", err)
 			}
@@ -483,7 +511,7 @@ func runAnalysis(ctx context.Context, t *translator.Translator, cfg *config.Conf
 		}
 	}
 
-	return fmUpdates
+	return fmUpdates, failed
 }
 
 // mapCombinedResponse unpacks a CombinedAnalysisResponse into the frontmatter updates map.
@@ -812,6 +840,10 @@ func applyCLIOverrides(cmd *cobra.Command, cfg *config.Config) {
 
 	if changed("ad-detect") {
 		cfg.Settings.AdDetect = adDetect
+	}
+
+	if changed("summary") {
+		cfg.Settings.Summary = summary
 	}
 
 	if changed("parallel-analysis") {
