@@ -276,17 +276,24 @@ REASONS: factual_information, contains_analysis, new_insights
 
 Text to analyze:`
 
+// Fixed marker vocabularies shared by the individual and combined prompts.
+const (
+	sensationalismMarkers = "exaggeration, superlatives, fear_appeal, urgency, misleading_headline, emotional_language, unverified_claims, sensational_words"
+	adMarkers             = "product_promotion, call_to_action, brand_emphasis, price_mention, discount_offer, affiliate_links, excessive_praise, no_criticism, corporate_language, marketing_claims, promotional_tone, sponsored_disclosure, paid_partnership, one_sided_coverage"
+)
+
 func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 	var sections []string
 
 	sections = append(sections, "Analyze the following text and provide results for ALL requested sections below.")
 	sections = append(sections, "Respond in the EXACT format specified for each section. Each section starts on a new line.")
+	sections = append(sections, "Answer only with the labeled lines, one per line: no markdown, no explanations, no code fences. Use 'none' when nothing applies.")
 	sections = append(sections, "")
 
 	if req.Sentiment {
 		sections = append(sections, "=== SENTIMENT ===")
 		sections = append(sections, "SENTIMENT: <positive|negative|neutral> (<score from -1.0 to 1.0>)")
-		sections = append(sections, "Rules: round score to 1 decimal place. Factual reporting = neutral (near 0.0).")
+		sections = append(sections, "Rules: round score to 1 decimal place. Score must be consistent with label: positive > 0.0, negative < 0.0, neutral around 0.0. Factual reporting = neutral (near 0.0).")
 		sections = append(sections, "")
 	}
 
@@ -306,12 +313,14 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 		sections = append(sections, "TOPICS: <from: politics, economics, technology, medicine, incidents>")
 		sections = append(sections, "SCOPE: <from: regional, international>")
 		sections = append(sections, "TYPE: <from: corporate, regulatory, macro>")
+		sections = append(sections, "Rules: use only the exact values listed above. Use 'none' for a category that does not apply.")
 		sections = append(sections, "")
 	}
 
 	if req.Emotions {
 		sections = append(sections, "=== EMOTIONS ===")
-		sections = append(sections, "EMOTIONS: <fear:X.X, anger:X.X, hope:X.X, uncertainty:X.X, optimism:X.X, panic:X.X>")
+		sections = append(sections, "EMOTIONS: <comma-separated name:score pairs, score 0.0-1.0>")
+		sections = append(sections, "Allowed emotions: fear, anger, hope, uncertainty, optimism, panic.")
 		sections = append(sections, "Rules: only emotions > 0.1, round to 1 decimal, descending order. Be conservative for factual news. Use 'none' if no emotion is above 0.1.")
 		sections = append(sections, "")
 	}
@@ -326,13 +335,14 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 	if req.Impact {
 		sections = append(sections, "=== IMPACT ===")
 		sections = append(sections, "AFFECTED: <from: individuals, business, government, investors, consumers>")
+		sections = append(sections, "Rules: use only the exact values listed above. Use 'none' if no one applies.")
 		sections = append(sections, "")
 	}
 
 	if req.Sensationalism {
 		sections = append(sections, "=== SENSATIONALISM ===")
 		sections = append(sections, "SENSATIONALISM: <neutral|emotional|clickbait|manipulative> (<confidence 0.0-1.0>)")
-		sections = append(sections, "MARKERS: <comma-separated markers>")
+		sections = append(sections, "MARKERS: <comma-separated, from: "+sensationalismMarkers+">")
 		sections = append(sections, "")
 	}
 
@@ -373,7 +383,7 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 	if req.AdDetect {
 		sections = append(sections, "=== AD DETECT ===")
 		sections = append(sections, "AD_TYPE: <none|direct|native|sponsored|pr> (<confidence 0.0-1.0>)")
-		sections = append(sections, "AD_MARKERS: <comma-separated advertising indicators>")
+		sections = append(sections, "AD_MARKERS: <comma-separated, from: "+adMarkers+">")
 		sections = append(sections, "Rules: genuine news about companies is NOT advertising. Be strict.")
 		sections = append(sections, "")
 	}
@@ -391,8 +401,11 @@ func BuildCombinedPrompt(req CombinedAnalysisRequest) string {
 	}
 
 	if req.Lang != "" {
-		sections = append(sections, fmt.Sprintf("Write all free-text values (tags, entities, events, indicators, markers, summary) in language %q.", req.Lang))
+		sections = append(sections, fmt.Sprintf("Write all free-text values (tags, entities, events, indicators, summary) in language %q.", req.Lang))
 		sections = append(sections, "Keep section labels and fixed choice values exactly as specified above, in English.")
+		sections = append(sections, "")
+	} else {
+		sections = append(sections, "Write all free-text values (tags, entities, events, indicators, summary) in the same language as the text.")
 		sections = append(sections, "")
 	}
 
