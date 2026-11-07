@@ -22,7 +22,10 @@ docker compose up -d --build
 ```
 
 `docker-compose.yml` mounts `./config.yaml` read-only to `/config.yaml`, publishes
-port 8080 and restarts the container (`unless-stopped`). To pass extra flags, override `command`:
+port 8080 and restarts the container (`unless-stopped`). The container runs as the
+non-root user `app` (uid 10001), so `config.yaml` must be readable by it (`chmod 644`).
+The image has a `HEALTHCHECK` that requests `/health` on port 8080 (it assumes the default
+`--listen :8080`). To pass extra flags, override `command`:
 
 ```yaml
 command: ["--api", "-c", "/config.yaml", "--parallel-analysis", "--tags", "5"]

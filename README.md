@@ -625,7 +625,9 @@ The image is built from `Dockerfile` (Go 1.25, static binary at
 `/usr/local/bin/llm-translate`, `ENTRYPOINT ["llm-translate"]`, default
 `CMD ["--api", "-c", "/config.yaml"]`, port 8080). `docker-compose.yml` mounts
 `./config.yaml` read-only to `/config.yaml`, publishes `8080:8080` and sets
-`restart: unless-stopped`.
+`restart: unless-stopped`. The container runs as non-root user `app` (uid 10001),
+so `config.yaml` must be world-readable (`chmod 644`); the image has a
+`HEALTHCHECK` on `/health` (assumes `--listen :8080`).
 
 Without Docker: `llm-translate --api --listen :8080 -c config.yaml`.
 Details: [docs/en/api-server.md](docs/en/api-server.md)
