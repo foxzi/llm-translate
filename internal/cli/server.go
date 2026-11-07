@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -67,26 +69,51 @@ type apiError struct {
 	RetryAfter int    `json:"retry_after,omitempty"`
 }
 
-// runServer serves translation and analysis over HTTP until ctx is cancelled.
-// Analyses enabled in cfg.Settings are applied to every request.
-func runServer(ctx context.Context, cfg *config.Config, glossary []config.GlossaryEntry) error {
-	srv := &http.Server{Addr: listenAddr, Handler: newServerHandler(cfg, glossary), ReadHeaderTimeout: 10 * time.Second}
+// defaultShutdownTimeout bounds the graceful shutdown when request_timeout is not set.
+const defaultShutdownTimeout = 60 * time.Second
 
-	go func() {
-		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		_ = srv.Shutdown(shutdownCtx)
-	}()
+// runServer serves translation and analysis over HTTP until ctx is cancelled,
+// then waits for in-flight requests. Analyses enabled in cfg.Settings are
+// applied to every request.
+func runServer(ctx context.Context, cfg *config.Config, glossary []config.GlossaryEntry) error {
+	srv := &http.Server{
+		Addr:              listenAddr,
+		Handler:           newServerHandler(cfg, glossary),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	ln, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		return err
+	}
 
 	logInfo("API server listening on %s (provider: %s, model: %s)", listenAddr, cfg.DefaultProvider, getModelForProvider(cfg))
 	if cfg.Settings.APIToken == "" {
 		logWarn("API token is not set, the server accepts requests without authorization")
 	}
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	timeout := defaultShutdownTimeout
+	if cfg.Settings.RequestTimeout > 0 {
+		timeout = time.Duration(cfg.Settings.RequestTimeout) * time.Second
+	}
+	return serve(ctx, srv, ln, timeout)
+}
+
+// serve runs srv on ln until ctx is cancelled and returns after Shutdown has
+// finished, i.e. after the in-flight requests are done or timeout has passed.
+func serve(ctx context.Context, srv *http.Server, ln net.Listener, timeout time.Duration) error {
+	shutdownErr := make(chan error, 1)
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		shutdownErr <- srv.Shutdown(shutdownCtx)
+	}()
+
+	if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
-	return nil
+	return <-shutdownErr
 }
 
 func newServerHandler(cfg *config.Config, glossary []config.GlossaryEntry) http.Handler {
@@ -104,6 +131,11 @@ func newServerHandler(cfg *config.Config, glossary []config.GlossaryEntry) http.
 			writeJSON(w, http.StatusUnauthorized, apiError{Error: "unauthorized", Code: codeUnauthorized})
 			return
 		}
+		// The body is read before a slot is taken so that slow clients do not hold one.
+		in, ok := readRequest(w, r, cfg)
+		if !ok {
+			return
+		}
 		ctx := r.Context()
 		if cfg.Settings.RequestTimeout > 0 {
 			var cancel context.CancelFunc
@@ -119,29 +151,34 @@ func newServerHandler(cfg *config.Config, glossary []config.GlossaryEntry) http.
 				return
 			}
 		}
-		handleTranslate(w, r.WithContext(ctx), cfg, glossary)
+		handleTranslate(w, r.WithContext(ctx), in, cfg, glossary)
 	})
 	return mux
 }
 
-func handleTranslate(w http.ResponseWriter, r *http.Request, cfg *config.Config, glossary []config.GlossaryEntry) {
+// readRequest decodes and validates the request body. It writes the error
+// response and returns false if the request is invalid.
+func readRequest(w http.ResponseWriter, r *http.Request, cfg *config.Config) (apiRequest, bool) {
 	var in apiRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxRequestBody)).Decode(&in); err != nil {
 		writeJSON(w, http.StatusBadRequest, apiError{Error: "invalid JSON: " + err.Error(), Code: codeInvalidRequest})
-		return
+		return in, false
 	}
 	if strings.TrimSpace(in.Text) == "" {
 		writeJSON(w, http.StatusBadRequest, apiError{Error: "text is required", Code: codeInvalidRequest})
-		return
+		return in, false
 	}
 	if n := utf8.RuneCountInString(in.Text); cfg.Settings.MaxTextLength > 0 && n > cfg.Settings.MaxTextLength {
 		writeJSON(w, http.StatusBadRequest, apiError{
 			Error: fmt.Sprintf("text is too long: %d characters, limit %d", n, cfg.Settings.MaxTextLength),
 			Code:  codeInvalidRequest,
 		})
-		return
+		return in, false
 	}
+	return in, true
+}
 
+func handleTranslate(w http.ResponseWriter, r *http.Request, in apiRequest, cfg *config.Config, glossary []config.GlossaryEntry) {
 	// Per-request settings; Config is copied by value, its maps are only read.
 	reqCfg := *cfg
 	if err := applyRequestAnalyses(&reqCfg.Settings, in); err != nil {
@@ -328,11 +365,19 @@ func joinTitle(title, text string) string {
 	return title + "\n\n" + text
 }
 
+var urlPattern = regexp.MustCompile(`https?://\S+`)
+
+// publicMessage is err's message without URLs, so that provider base URLs
+// and keys in query strings do not reach API clients. The logs keep the full error.
+func publicMessage(err error) string {
+	return urlPattern.ReplaceAllString(err.Error(), "<url>")
+}
+
 // writeProcessError maps a processing error to an HTTP status and code.
 // Errors other than the request timeout and a provider 429 stay 502.
 func writeProcessError(w http.ResponseWriter, ctx context.Context, err error, usage *translator.Usage) {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		writeJSON(w, http.StatusGatewayTimeout, apiError{Error: "request timeout: " + err.Error(), Code: codeTimeout})
+		writeJSON(w, http.StatusGatewayTimeout, apiError{Error: "request timeout: " + publicMessage(err), Code: codeTimeout})
 		return
 	}
 	if usage != nil {
@@ -340,11 +385,11 @@ func writeProcessError(w http.ResponseWriter, ctx context.Context, err error, us
 			if after > 0 {
 				w.Header().Set("Retry-After", strconv.Itoa(after))
 			}
-			writeJSON(w, http.StatusTooManyRequests, apiError{Error: err.Error(), Code: codeRateLimited, RetryAfter: after})
+			writeJSON(w, http.StatusTooManyRequests, apiError{Error: publicMessage(err), Code: codeRateLimited, RetryAfter: after})
 			return
 		}
 	}
-	writeJSON(w, http.StatusBadGateway, apiError{Error: err.Error(), Code: codeProviderError})
+	writeJSON(w, http.StatusBadGateway, apiError{Error: publicMessage(err), Code: codeProviderError})
 }
 
 // authorized reports whether r carries "Authorization: Bearer <token>".
